@@ -15,19 +15,22 @@
       <span>Streak <b id="streak">0</b></span>
       <span id="progress"></span>
     </div>
+    <div class="level-ctl">
+      <label for="levelSel">Level</label>
+      <select id="levelSel">
+        <option value="1">1 – No restrictions</option>
+        <option value="2">2 – 1 minute timer</option>
+        <option value="3">3 – Letter slots only</option>
+        <option value="4">4 – Word not spoken</option>
+        <option value="5">5 – IPA guide only</option>
+      </select>
+    </div>
     <div class="menu-wrap">
       <button id="menuBtn" class="btn small" aria-haspopup="true" aria-expanded="false">☰ Menu</button>
       <div id="menu" class="menu" hidden>
-        <label for="levelSel">Level</label>
-        <select id="levelSel">
-          <option value="1">1 – No restrictions</option>
-          <option value="2">2 – 1 minute timer</option>
-          <option value="3">3 – Letter slots only</option>
-          <option value="4">4 – Word not spoken</option>
-          <option value="5">5 – IPA guide only</option>
-        </select>
         <label for="listSel">Word list</label>
         <select id="listSel"></select>
+        <button id="viewWordsBtn" class="btn small">📖 View words</button>
         <button id="uploadBtn" class="btn small">⬆ Upload list (.txt)</button>
         <input id="fileInput" type="file" accept=".txt,text/plain" hidden />
         <button id="deleteListBtn" class="btn small ghost">Delete this list</button>
@@ -52,6 +55,12 @@
       <span id="micLabel">Wait…</span>
     </button>
   </div>
+
+  <dialog id="wordsDlg" class="words-dlg">
+    <h2 id="wordsTitle"></h2>
+    <div id="wordsBody" class="words-body"></div>
+    <button id="wordsClose" class="btn small">Close</button>
+  </dialog>
 
   <script type="module" src="/src/main.js"></script>
 </body>

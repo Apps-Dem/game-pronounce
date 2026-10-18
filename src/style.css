@@ -22,6 +22,17 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: #fff; font-f
 .btn.ghost { background: #64748b; box-shadow: 0 4px 0 #3f4a5a; }
 
 .menu-wrap { position: relative; }
+.level-ctl { display: flex; align-items: center; gap: 10px; font-size: 1.2rem; font-weight: 700; }
+.level-ctl select { font: inherit; font-size: 1.1rem; padding: 10px 14px; border-radius: 12px; border: 3px solid var(--word); background: #1b2260; color: #fff; cursor: pointer; }
+.words-dlg { width: min(560px, 92vw); max-height: 80vh; border: 3px solid #3b82f6; border-radius: 18px; background: #141a46; color: #fff; padding: 20px; }
+.words-dlg::backdrop { background: rgba(0,0,0,.6); }
+.words-dlg h2 { margin: 0 0 12px; }
+.words-body { max-height: 52vh; overflow: auto; margin-bottom: 14px; }
+.words-body table { width: 100%; border-collapse: collapse; }
+.words-body td { padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,.12); }
+.words-body td:nth-child(1) { color: var(--word); font-weight: 700; }
+.words-body td:nth-child(2) { color: var(--syl); }
+.words-body td:nth-child(3) { color: var(--ipa); }
 .menu { position: absolute; right: 0; top: 54px; width: 280px; display: flex; flex-direction: column; gap: 10px; padding: 16px; background: rgba(20, 26, 70, .96); border: 2px solid #3b82f6; border-radius: 16px; }
 .menu[hidden] { display: none; }
 .menu select { font: inherit; padding: 8px; border-radius: 8px; }

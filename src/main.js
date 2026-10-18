@@ -7,10 +7,13 @@ const fx = createScene($("scene"));
 
 const PASS = 0.8;
 const TIME_LIMIT = 60;
+const AUTO_START = 30;
+let autoId = null;
 const LISTS_KEY = "pronounce.lists.v1";
-const SAMPLE = ["apple", "banana", "elephant", "computer", "umbrella", "butterfly", "chocolate", "library", "dinosaur", "pronounce"];
+const SAMPLE = ["pronounce", "apple", "banana", "elephant", "computer", "umbrella", "butterfly", "chocolate", "library", "dinosaur"];
 
-const lists = JSON.parse(localStorage.getItem(LISTS_KEY) || "null") || { Sample: SAMPLE };
+const lists = { Sample: SAMPLE, ...(JSON.parse(localStorage.getItem(LISTS_KEY) || "null") || {}) };
+lists.Sample = SAMPLE;
 let currentList = Object.keys(lists)[0];
 let entries = [];
 let idx = -1;
@@ -183,7 +186,32 @@ function nextWord() {
   loadWord();
 }
 
+function stopAutoStart() { clearInterval(autoId); autoId = null; }
+function beginAutoStart() {
+  stopAutoStart();
+  let left = AUTO_START;
+  const draw = () => ($("nextBtn").textContent = `Start ➜ (${left}s)`);
+  draw();
+  autoId = setInterval(() => {
+    left--;
+    if (left <= 0) { stopAutoStart(); $("nextBtn").click(); } else draw();
+  }, 1000);
+}
+
+function showWords() {
+  const rows = lists[currentList].map((w, i) => {
+    const e = entries[i];
+    return `<tr><td>${esc(w)}</td><td>${e ? esc(e.syllables.join("·")) : "…"}</td><td>${e ? esc(e.ipa || "") : ""}</td></tr>`;
+  });
+  $("wordsTitle").textContent = `${currentList} (${rows.length} words)`;
+  $("wordsBody").innerHTML = `<table>${rows.join("")}</table>`;
+  $("menu").hidden = true;
+  $("wordsDlg").showModal();
+}
+const esc = (s) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+
 async function startList(name) {
+  stopAutoStart();
   currentList = name;
   cancelSpeech(); stopListening(); stopTimer();
   started = false;
@@ -216,6 +244,7 @@ async function startList(name) {
   $("sayBtn").disabled = true;
   $("nextBtn").hidden = false;
   $("nextBtn").textContent = "Start ➜";
+  beginAutoStart();
   setFeedback(speechSupported.stt ? "" : "Speech recognition isn't supported here. Use Chrome, Edge or Safari.", "bad");
   updateStats();
 }
@@ -259,7 +288,9 @@ $("fileInput").onchange = async (e) => {
 };
 $("sayBtn").onclick = () => { if (!busy && !listening && idx >= 0) { stopListening(); say(); } };
 $("micBtn").onclick = toggleMic;
-$("nextBtn").onclick = () => { started = true; nextWord(); };
+$("nextBtn").onclick = () => { stopAutoStart(); started = true; nextWord(); };
+$("viewWordsBtn").onclick = showWords;
+$("wordsClose").onclick = () => $("wordsDlg").close();
 
 fillListSelect();
 startList(currentList);
