@@ -1,5 +1,5 @@
 const VOWELS = new Set("aeiouy");
-const CACHE_KEY = "pronounce.entries.v1";
+const CACHE_KEY = "pronounce.entries.v2";
 const cache = JSON.parse(localStorage.getItem(CACHE_KEY) || "{}");
 
 export function syllabify(word) {
@@ -98,26 +98,67 @@ export function parseWordList(text) {
   return text.split(/\r?\n/).map((l) => l.trim()).filter((l) => /^[A-Za-z'-]+$/.test(l) && !seen.has(l.toLowerCase()) && seen.add(l.toLowerCase()));
 }
 
-export async function lookup(word) {
-  const key = word.toLowerCase();
-  if (!cache[key]?.ipa) {
-    const entry = { word, syllables: syllabify(word), ipa: await fetchIpa(key) };
-    if (!entry.ipa) return entry; // don't cache failures so they are retried
-    cache[key] = entry;
-    localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
-  }
-  return cache[key];
+const FIXIE = "https://fixie.tools/api/syllables";
+
+// Convert a Fixie result to an entry, keeping the word's original casing.
+function fromFixie(word, r) {
+  if (!r?.ipa || !r.syllables?.length) return null;
+  let syllables = r.syllables;
+  if (syllables.join("").toLowerCase() !== word.toLowerCase()) syllables = syllabify(word);
+  else { let p = 0; syllables = syllables.map((s) => { const o = word.slice(p, p + s.length); p += s.length; return o; }); }
+  return { word, syllables, ipa: r.ipa };
 }
 
-// Scan words in small parallel batches, reporting progress.
+function remember(entry) {
+  cache[entry.word.toLowerCase()] = entry;
+  localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+}
+
+export async function lookup(word) {
+  const key = word.toLowerCase();
+  if (cache[key]) return cache[key];
+  const fx = fromFixie(word, await getJson(`${FIXIE}?word=${encodeURIComponent(key)}`));
+  if (fx) { remember(fx); return fx; }
+  const entry = { word, syllables: syllabify(word), ipa: await fetchIpa(key) };
+  if (entry.ipa) remember(entry); // failures aren't cached so they are retried
+  return entry;
+}
+
+// Batch-resolve uncached words via Fixie (100 per request), then fall back per word.
 export async function scanWords(words, onProgress) {
   const out = new Array(words.length);
-  let next = 0, done = 0;
+  let done = 0;
+  const report = () => onProgress?.(++done, words.length);
+  const missing = [];
+  words.forEach((w, i) => {
+    const hit = cache[w.toLowerCase()];
+    if (hit) { out[i] = hit; report(); } else missing.push(i);
+  });
+  for (let s = 0; s < missing.length; s += 100) {
+    const chunk = missing.slice(s, s + 100);
+    let res = null;
+    try {
+      const r = await fetch(`${FIXIE}/batch`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ words: chunk.map((i) => words[i].toLowerCase()), lang: "en" }),
+      });
+      res = r.ok ? (await r.json()).results : null;
+    } catch { /* fall back below */ }
+    const byWord = new Map((res || []).map((x) => [x.word.toLowerCase(), x]));
+    for (const i of chunk) {
+      const fx = fromFixie(words[i], byWord.get(words[i].toLowerCase()));
+      if (fx) { remember(fx); out[i] = fx; report(); }
+    }
+  }
+  // Anything the batch didn't resolve uses the single-word fallbacks.
+  const rest = words.map((_, i) => i).filter((i) => !out[i]);
+  let next = 0;
   const worker = async () => {
-    while (next < words.length) {
-      const i = next++;
+    while (next < rest.length) {
+      const i = rest[next++];
       out[i] = await lookup(words[i]);
-      onProgress?.(++done, words.length);
+      report();
     }
   };
   await Promise.all([worker(), worker(), worker(), worker()]);
