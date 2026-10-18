@@ -109,6 +109,7 @@ function finishWord(success) {
   $("sayBtn").disabled = false;
   $("nextBtn").hidden = false;
   $("nextBtn").textContent = idx + 1 >= entries.length ? "Play again ➜" : "Next word ➜";
+  beginAutoStart(idx + 1 >= entries.length ? "Play again ➜" : "Next word ➜");
   if (success) { score += 10 + Math.min(streak, 5) * 2; streak++; fx.burst(); } else streak = 0;
   updateStats();
 }
@@ -187,10 +188,10 @@ function nextWord() {
 }
 
 function stopAutoStart() { clearInterval(autoId); autoId = null; }
-function beginAutoStart() {
+function beginAutoStart(label) {
   stopAutoStart();
   let left = AUTO_START;
-  const draw = () => ($("nextBtn").textContent = `Start ➜ (${left}s)`);
+  const draw = () => ($("nextBtn").textContent = `${label} (${left}s)`);
   draw();
   autoId = setInterval(() => {
     left--;
@@ -244,7 +245,6 @@ async function startList(name) {
   $("sayBtn").disabled = true;
   $("nextBtn").hidden = false;
   $("nextBtn").textContent = "Start ➜";
-  beginAutoStart();
   setFeedback(speechSupported.stt ? "" : "Speech recognition isn't supported here. Use Chrome, Edge or Safari.", "bad");
   updateStats();
 }
