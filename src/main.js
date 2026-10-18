@@ -62,6 +62,7 @@ function renderWord(entry, reveal = false) {
   sy.innerHTML = "";
   if (!r.ipaOnly || reveal) entry.syllables.forEach((s) => { const e = document.createElement("span"); e.className = "syl"; e.textContent = s; sy.append(e); });
   $("ipa").textContent = entry.ipa || "";
+  $("ipa").classList.toggle("large", r.ipaOnly);
 }
 
 function highlight(i) {
@@ -75,7 +76,10 @@ function startTimer() {
   if (!rules().timer) { t.hidden = true; return; }
   timeLeft = TIME_LIMIT;
   t.hidden = false;
-  const draw = () => { t.textContent = `⏱ ${timeLeft}s`; t.classList.toggle("low", timeLeft <= 10); };
+  const draw = () => {
+    t.textContent = `⏱ ${timeLeft}s`;
+    t.className = "timer " + (timeLeft > 30 ? "green" : timeLeft > 10 ? "yellow" : "red");
+  };
   draw();
   timerId = setInterval(() => {
     timeLeft--;

@@ -36,11 +36,14 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: #fff; font-f
 .syllables .syl + .syl::before { content: "·"; margin-left: -.5em; margin-right: .25em; opacity: .6; }
 .syllables .syl.on { background: var(--syl); color: #0b1030; transform: scale(1.25); box-shadow: 0 0 24px var(--syl); }
 .ipa { font-size: clamp(1.4rem, 4vw, 2.4rem); color: var(--ipa); font-family: "Charis SIL", "Doulos SIL", "Lucida Sans Unicode", serif; min-height: 1.3em; }
+.ipa.large { font-size: clamp(3rem, 10vw, 7rem); font-weight: 700; text-shadow: 0 0 24px rgba(255,122,217,.45); }
 .feedback { font-size: 1.5rem; font-weight: 700; min-height: 2.2em; max-width: 90vw; }
 .feedback.ok { color: #4ade80; }
 .feedback.bad { color: #fb923c; }
 .timer { font-size: 2rem; font-weight: 900; color: #fff; background: rgba(0,0,0,.35); padding: 4px 22px; border-radius: 999px; }
-.timer.low { color: #f87171; }
+.timer.green { background: #16a34a; }
+.timer.yellow { background: #eab308; color: #1f2937; }
+.timer.red { background: #dc2626; }
 .loader { display: flex; align-items: center; gap: 16px; font-size: 1.6rem; font-weight: 700; }
 .loader[hidden] { display: none; }
 .spinner { width: 44px; height: 44px; border: 6px solid rgba(255,255,255,.25); border-top-color: var(--word); border-radius: 50%; animation: spin .8s linear infinite; }
