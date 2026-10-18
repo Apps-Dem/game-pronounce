@@ -8,7 +8,7 @@ const fx = createScene($("scene"));
 const PASS = 0.8;
 const TIME_LIMIT = 60;
 const AUTO_START = 30;
-let autoId = null;
+let autoId = null, firstPending = false;
 const LISTS_KEY = "pronounce.lists.v1";
 const SAMPLE = ["pronounce", "apple", "banana", "elephant", "computer", "umbrella", "butterfly", "chocolate", "library", "dinosaur"];
 
@@ -213,6 +213,7 @@ const esc = (s) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
 async function startList(name) {
   stopAutoStart();
+  firstPending = false;
   currentList = name;
   cancelSpeech(); stopListening(); stopTimer();
   started = false;
@@ -239,13 +240,15 @@ async function startList(name) {
   });
   $("uploadStatus").textContent = `Loaded "${name}" (${words.length} words)`;
   $("loader").hidden = true;
-  idx = -1;
-  $("word").textContent = "Ready?";
+  idx = 0;
+  firstPending = true;
+  solved = false;
+  renderWord(entries[0]);
   $("sayBtn").hidden = false;
   $("sayBtn").disabled = true;
   $("nextBtn").hidden = false;
-  $("nextBtn").textContent = "Start ➜";
-  setFeedback(speechSupported.stt ? "" : "Speech recognition isn't supported here. Use Chrome, Edge or Safari.", "bad");
+  beginAutoStart("Start now ➜");
+  setFeedback(speechSupported.stt ? "Get ready! The word will be said when the countdown ends." : "Speech recognition isn't supported here. Use Chrome, Edge or Safari.", speechSupported.stt ? "" : "bad");
   updateStats();
 }
 
@@ -288,7 +291,11 @@ $("fileInput").onchange = async (e) => {
 };
 $("sayBtn").onclick = () => { if (!busy && !listening && idx >= 0) { stopListening(); say(); } };
 $("micBtn").onclick = toggleMic;
-$("nextBtn").onclick = () => { stopAutoStart(); started = true; nextWord(); };
+$("nextBtn").onclick = () => {
+  stopAutoStart();
+  started = true;
+  if (firstPending) { firstPending = false; loadWord(); } else nextWord();
+};
 $("viewWordsBtn").onclick = showWords;
 $("wordsClose").onclick = () => $("wordsDlg").close();
 
