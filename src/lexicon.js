@@ -43,18 +43,54 @@ export function syllabify(word) {
   return out.filter(Boolean);
 }
 
-async function fetchIpa(word) {
+const ARPA = {
+  AA: "ɑ", AE: "æ", AH: "ʌ", AO: "ɔ", AW: "aʊ", AY: "aɪ", EH: "ɛ", ER: "ɝ", EY: "eɪ", IH: "ɪ", IY: "i", OW: "oʊ", OY: "ɔɪ", UH: "ʊ", UW: "u",
+  B: "b", CH: "tʃ", D: "d", DH: "ð", F: "f", G: "ɡ", HH: "h", JH: "dʒ", K: "k", L: "l", M: "m", N: "n", NG: "ŋ", P: "p", R: "ɹ", S: "s", SH: "ʃ", T: "t", TH: "θ", V: "v", W: "w", Y: "j", Z: "z", ZH: "ʒ",
+};
+
+function arpabetToIpa(str) {
+  let out = "";
+  let onset = "";
+  for (const tok of str.trim().split(/\s+/)) {
+    const m = tok.match(/^([A-Z]+)([0-2])?$/);
+    if (!m || !ARPA[m[1]]) continue;
+    if (m[2] === undefined) { onset += ARPA[m[1]]; continue; }
+    let sym = ARPA[m[1]];
+    if (m[1] === "AH" && m[2] === "0") sym = "ə";
+    if (m[1] === "ER" && m[2] === "0") sym = "ɚ";
+    const mark = m[2] === "1" ? "ˈ" : m[2] === "2" ? "ˌ" : "";
+    out += mark + onset + sym;
+    onset = "";
+    seenVowel = true;
+  }
+  return `/${out}${onset}/`;
+}
+
+async function getJson(url) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 5000);
   try {
-    const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`);
-    if (!res.ok) return "";
-    const data = await res.json();
-    for (const entry of data) {
-      if (entry.phonetic) return entry.phonetic;
-      const p = (entry.phonetics || []).find((x) => x.text);
-      if (p) return p.text;
-    }
-  } catch { /* offline or rate limited */ }
-  return "";
+    const res = await fetch(url, { signal: ctrl.signal });
+    return res.ok ? await res.json() : null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+async function fetchIpa(word) {
+  const q = encodeURIComponent(word);
+  const dict = await getJson(`https://api.dictionaryapi.dev/api/v2/entries/en/${q}`);
+  for (const entry of dict || []) {
+    if (entry.phonetic) return entry.phonetic;
+    const p = (entry.phonetics || []).find((x) => x.text);
+    if (p) return p.text;
+  }
+  // Fallback: CMU pronunciation via Datamuse, converted to IPA.
+  const dm = await getJson(`https://api.datamuse.com/words?sp=${q}&md=r&max=1`);
+  const tag = dm?.[0]?.word?.toLowerCase() === word.toLowerCase() && dm[0].tags?.find((t) => t.startsWith("pron:"));
+  return tag ? arpabetToIpa(tag.slice(5)) : "";
 }
 
 export function parseWordList(text) {
@@ -64,8 +100,10 @@ export function parseWordList(text) {
 
 export async function lookup(word) {
   const key = word.toLowerCase();
-  if (!cache[key]) {
-    cache[key] = { word, syllables: syllabify(word), ipa: await fetchIpa(key) };
+  if (!cache[key]?.ipa) {
+    const entry = { word, syllables: syllabify(word), ipa: await fetchIpa(key) };
+    if (!entry.ipa) return entry; // don't cache failures so they are retried
+    cache[key] = entry;
     localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
   }
   return cache[key];
