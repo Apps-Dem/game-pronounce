@@ -31,7 +31,8 @@
         <label for="listSel">Word list</label>
         <select id="listSel"></select>
         <button id="viewWordsBtn" class="btn small">📖 View words</button>
-        <button id="uploadBtn" class="btn small">⬆ Upload list (.txt)</button>
+        <button id="uploadBtn" class="btn small" aria-describedby="uploadHint">⬆ Upload list (.txt)</button>
+        <p id="uploadHint" class="hint">Text file with one word per line. Syllables and pronunciation are generated automatically.</p>
         <input id="fileInput" type="file" accept=".txt,text/plain" hidden />
         <button id="deleteListBtn" class="btn small ghost">Delete this list</button>
         <div id="uploadStatus" role="status"></div>
