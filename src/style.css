@@ -41,9 +41,13 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: #fff; font-f
 .feedback.bad { color: #fb923c; }
 .timer { font-size: 2rem; font-weight: 900; color: #fff; background: rgba(0,0,0,.35); padding: 4px 22px; border-radius: 999px; }
 .timer.low { color: #f87171; }
+.loader { display: flex; align-items: center; gap: 16px; font-size: 1.6rem; font-weight: 700; }
+.loader[hidden] { display: none; }
+.spinner { width: 44px; height: 44px; border: 6px solid rgba(255,255,255,.25); border-top-color: var(--word); border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
 
 .mic-zone { position: fixed; bottom: 22px; left: 0; right: 0; display: flex; justify-content: center; z-index: 8; }
-.mic { width: 150px; height: 150px; border-radius: 50%; border: 6px solid #fff; background: transparent; color: #fff; font-weight: 700; font-size: 1.1rem; cursor: pointer; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 14px; position: relative; box-shadow: 0 8px 24px rgba(0,0,0,.5); }
+.mic { width: 150px; height: 150px; border-radius: 50%; border: 6px solid #fff; background: transparent; color: #fff; font-weight: 700; font-size: 1.1rem; cursor: pointer; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 30px; line-height: 1.1; position: relative; box-shadow: 0 8px 24px rgba(0,0,0,.5); }
 .mic::before { content: "🎤"; position: absolute; top: 24px; left: 0; right: 0; font-size: 3.6rem; line-height: 1; }
 .mic:disabled { opacity: .45; cursor: not-allowed; filter: grayscale(.8); }
 .mic.ready { border-color: #93c5fd; }

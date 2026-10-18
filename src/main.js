@@ -1,5 +1,5 @@
 import { createScene } from "./scene.js";
-import { parseWordList, scanWords } from "./lexicon.js";
+import { parseWordList, scanWords, lookup } from "./lexicon.js";
 import { sayWord, cancelSpeech, listen, stopListening, score as scoreSpeech, speechSupported } from "./speech.js";
 
 const $ = (id) => document.getElementById(id);
@@ -18,6 +18,7 @@ let level = 1;
 let score = 0, streak = 0;
 let busy = false, solved = false, listening = false, canListen = false;
 let timerId = null, timeLeft = 0, started = false;
+let scanDone = Promise.resolve(), loadRun = 0;
 
 // Cumulative level rules
 const rules = () => ({
@@ -109,7 +110,7 @@ async function say() {
   const entry = entries[idx];
   busy = true;
   canListen = false;
-  setMic("off", "Listening to word…");
+  setMic("off", "Word playing");
   $("sayBtn").disabled = true;
   const completed = await sayWord(entry, highlight);
   highlight(-1);
@@ -125,6 +126,12 @@ function enableMic() {
 }
 
 async function loadWord() {
+  if (!entries[idx]) {
+    $("nextBtn").hidden = true;
+    $("loader").hidden = false;
+    await scanDone;
+    $("loader").hidden = true;
+  }
   const entry = entries[idx];
   solved = false;
   listening = false;
@@ -148,7 +155,7 @@ async function toggleMic() {
   if (!canListen || busy || solved) return;
   if (listening) { stopListening(); return; }
   listening = true;
-  setMic("live", "Listening… tap to stop");
+  setMic("live", "Tap to stop");
   setFeedback("");
   try {
     const alts = await listen();
@@ -177,14 +184,30 @@ async function startList(name) {
   cancelSpeech(); stopListening(); stopTimer();
   started = false;
   setMic("off", "Wait…");
-  $("uploadStatus").textContent = `Scanning ${lists[name].length} words…`;
-  entries = await scanWords(lists[name], (d, n) => ($("uploadStatus").textContent = `Scanning words ${d}/${n}`));
-  $("uploadStatus").textContent = `Loaded "${name}" (${entries.length} words)`;
-  idx = -1;
-  $("word").textContent = "Ready?";
+  entries = [];
+  scanDone = Promise.resolve();
+  const words = lists[name];
+  const run = ++loadRun;
+  $("word").textContent = "";
   $("syllables").textContent = "";
   $("ipa").textContent = "";
   $("timer").hidden = true;
+  $("sayBtn").hidden = true;
+  $("nextBtn").hidden = true;
+  $("loader").hidden = false;
+  setFeedback("");
+  updateStats();
+  const first = await lookup(words[0]);
+  if (run !== loadRun) return;
+  entries = new Array(words.length);
+  entries[0] = first;
+  scanDone = scanWords(words.slice(1), (d, n) => ($("uploadStatus").textContent = `Scanning words ${d + 1}/${n + 1}`)).then((rest) => {
+    if (run === loadRun) rest.forEach((e, i) => (entries[i + 1] = e));
+  });
+  $("uploadStatus").textContent = `Loaded "${name}" (${words.length} words)`;
+  $("loader").hidden = true;
+  idx = -1;
+  $("word").textContent = "Ready?";
   $("sayBtn").hidden = false;
   $("sayBtn").disabled = true;
   $("nextBtn").hidden = false;
