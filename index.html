@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Say It! Pronunciation Game</title>
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <canvas id="scene" aria-hidden="true"></canvas>
+
+  <header class="topbar">
+    <div class="stats">
+      <span>Score <b id="score">0</b></span>
+      <span>Streak <b id="streak">0</b></span>
+      <span id="progress"></span>
+    </div>
+    <div class="menu-wrap">
+      <button id="menuBtn" class="btn small" aria-haspopup="true" aria-expanded="false">☰ Menu</button>
+      <div id="menu" class="menu" hidden>
+        <label for="levelSel">Level</label>
+        <select id="levelSel">
+          <option value="1">1 – No restrictions</option>
+          <option value="2">2 – 1 minute timer</option>
+          <option value="3">3 – Letter slots only</option>
+          <option value="4">4 – Word not spoken</option>
+          <option value="5">5 – IPA guide only</option>
+        </select>
+        <label for="listSel">Word list</label>
+        <select id="listSel"></select>
+        <button id="uploadBtn" class="btn small">⬆ Upload list (.txt)</button>
+        <input id="fileInput" type="file" accept=".txt,text/plain" hidden />
+        <button id="deleteListBtn" class="btn small ghost">Delete this list</button>
+        <div id="uploadStatus" role="status"></div>
+      </div>
+    </div>
+  </header>
+
+  <main class="stage">
+    <div id="timer" class="timer" hidden></div>
+    <div id="word" class="word"></div>
+    <div id="syllables" class="syllables"></div>
+    <div id="ipa" class="ipa"></div>
+    <button id="sayBtn" class="btn big">🔊 Say word</button>
+    <div id="feedback" class="feedback" role="status" aria-live="polite"></div>
+    <button id="nextBtn" class="btn big accent" hidden>Next word ➜</button>
+  </main>
+
+  <div class="mic-zone">
+    <button id="micBtn" class="mic" aria-label="Microphone" disabled>
+      <span id="micLabel">Wait…</span>
+    </button>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
