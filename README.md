@@ -18,7 +18,10 @@ A game for practicing word pronunciation with speech recognition.
 
 This project is designed to be deployed as a static site. It can be easily deployed using Cloudflare Pages or similar static hosting services.
 
-### To deploy with Cloudflare Pages:
+### Automatic Deployment with GitHub Actions
+This repository includes a GitHub Actions workflow that automatically deploys changes to Cloudflare Pages when code is pushed to the main branch.
+
+### Manual Deployment to Cloudflare Pages:
 1. Push this repository to GitHub/GitLab
 2. Create a new Pages project in Cloudflare Dashboard
 3. Set build command: `npm run build` 
