@@ -1,0 +1,10 @@
+{
+  "build": {
+    "command": "echo 'No build needed for this static site'",
+    "output": "dist",
+    "env": {}
+  },
+  "site": {
+    "bucket": "dist"
+  }
+}
