@@ -39,3 +39,9 @@ npm run dev
 - The dist directory contains the compiled assets that will be served
 
 If you have any build issues, make sure you're using Node.js 20 or higher.
+
+## Platform Documentation Guidelines
+
+When working with software and documentation:
+1. Always find the documentation that matches your version platform in use 
+2. If not sure, assume the latest platform version available at LTS for compatibility
