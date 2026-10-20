@@ -29,10 +29,9 @@ jobs:
         echo "Build completed successfully"
     
     - name: Deploy to Cloudflare Pages
-      uses: Cloudflare/cloudflare-pages-action@v1
+      uses: cloudflare/cloudflare-pages-action@v1
       with:
         apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         projectName: "pronounce-game"
         directory: "dist"
-        rootDirectory: "."
