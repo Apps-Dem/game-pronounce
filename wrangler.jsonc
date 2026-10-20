@@ -1,0 +1,11 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "pronounce-game",
+  "compatibility_date": "2026-10-19",
+  "assets": {
+    "directory": "./dist"
+  },
+  "routes": [
+    { "pattern": "pronounce.alldem.app", "custom_domain": true }
+  ]
+}

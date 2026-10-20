@@ -16,17 +16,16 @@ A game for practicing word pronunciation with speech recognition.
 
 ## Deployment
 
-This project is designed to be deployed as a static site. It can be easily deployed using Cloudflare Pages or similar static hosting services.
+This project is deployed as a Cloudflare Worker with static assets (see `wrangler.jsonc`) at https://pronounce.alldem.app.
 
 ### Automatic Deployment with GitHub Actions
-This repository includes a GitHub Actions workflow that automatically deploys changes to Cloudflare Pages when code is pushed to the main branch.
+The workflow in `.github/workflows/deploy-to-cloudflare.yml` runs `npm run deploy` on every push to `main`. It needs the repository secrets `CLOUDFLARE_API_TOKEN` (Workers edit permission plus DNS/zone access for the custom domain) and `CLOUDFLARE_ACCOUNT_ID`.
 
-### Manual Deployment to Cloudflare Pages:
-1. Push this repository to GitHub/GitLab
-2. Create a new Pages project in Cloudflare Dashboard
-3. Set build command: `npm run build` 
-4. Set output directory: `dist`
-5. Add custom domain `pronounce.game.alldem.app`
+### Manual Deployment:
+```bash
+npx wrangler login
+npm run deploy
+```
 
 ### For local development:
 ```bash
@@ -36,7 +35,7 @@ npm run dev
 
 ### Important Notes:
 - The project uses Vite for bundling
-- Cloudflare Pages will automatically install dependencies and build the application using the existing package.json
+- Wrangler deploys the built `dist` directory as static assets
 - The dist directory contains the compiled assets that will be served
 
-If you have any build issues, make sure you're using a modern Node.js version (16 or higher) locally for development.
+If you have any build issues, make sure you're using Node.js 20 or higher.
