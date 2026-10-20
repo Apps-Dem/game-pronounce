@@ -108,7 +108,7 @@ const FIXIE = "https://fixie.tools/api/syllables";
 function fromFixie(word, r) {
   if (!r?.syllables?.length) return null;
   let syllables = r.syllables;
-  if (syllables.join("").toLowerCase() !== word.toLowerCase()) syllables = syllabify(word);
+  if (word.includes(" ") || syllables.join("").toLowerCase() !== word.toLowerCase()) syllables = syllabify(word);
   else { let p = 0; syllables = syllables.map((s) => { const o = word.slice(p, p + s.length); p += s.length; return o; }); }
   return { word, syllables, ipa: r.ipa || "" };
 }
