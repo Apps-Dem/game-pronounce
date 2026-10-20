@@ -69,3 +69,36 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: #fff; font-f
 .mic.ready { border-color: #93c5fd; }
 .mic.live { border-color: #fecaca; animation: pulse 1s infinite; }
 @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(239,68,68,.8); } 100% { box-shadow: 0 0 0 40px rgba(239,68,68,0); } }
+
+/* Menu labels styling */
+.menu-labels {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin-top: 10px;
+  padding: 8px 0;
+  border-top: 1px solid rgba(255,255,255,.1);
+}
+
+.label-by,
+.label-company {
+  font-size: .8rem;
+  font-weight: 300;
+  text-align: center;
+  transform: rotate(0deg);
+  writing-mode: vertical-lr;
+  text-orientation: mixed;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.label-by {
+  color: #a7b8d2;
+}
+
+.label-company {
+  color: #64748b;
+  font-size: .65rem;
+}

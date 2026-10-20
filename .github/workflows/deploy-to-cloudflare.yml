@@ -35,3 +35,4 @@ jobs:
         accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         projectName: "pronounce-game"
         directory: "dist"
+        rootDirectory: "."
