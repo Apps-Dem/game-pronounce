@@ -59,7 +59,7 @@ function renderWord(entry, reveal = false) {
   const w = $("word");
   w.innerHTML = "";
   if (r.slots && !reveal) {
-    if (!r.ipaOnly) for (const ch of entry.word) { const s = document.createElement("span"); s.className = "slot"; s.textContent = "\u00A0"; s.dataset.ch = ch; w.append(s); }
+    if (!r.ipaOnly) for (const ch of entry.word) { const s = document.createElement("span"); s.className = ch === " " ? "gap" : "slot"; s.textContent = "\u00A0"; s.dataset.ch = ch; w.append(s); }
   } else w.textContent = entry.word;
   const sy = $("syllables");
   sy.innerHTML = "";
@@ -236,7 +236,10 @@ async function startList(name) {
   entries = new Array(words.length);
   entries[0] = first;
   scanDone = scanWords(words.slice(1), (d, n) => ($("uploadStatus").textContent = `Scanning words ${d + 1}/${n + 1}`)).then((rest) => {
-    if (run === loadRun) rest.forEach((e, i) => (entries[i + 1] = e));
+    if (run === loadRun) {
+      rest.forEach((e, i) => (entries[i + 1] = e));
+      $("uploadStatus").textContent = `Loaded "${name}" (${words.length} words)`;
+    }
   });
   $("uploadStatus").textContent = `Loaded "${name}" (${words.length} words)`;
   $("loader").hidden = true;

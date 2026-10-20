@@ -3,6 +3,7 @@ const CACHE_KEY = "pronounce.entries.v2";
 const cache = JSON.parse(localStorage.getItem(CACHE_KEY) || "{}");
 
 export function syllabify(word) {
+  if (word.includes(" ")) return word.split(" ").flatMap(syllabify);
   const w = word.toLowerCase();
   const isV = (i) => VOWELS.has(w[i]) && !(w[i] === "y" && i === 0);
   const groups = [];
@@ -61,7 +62,6 @@ function arpabetToIpa(str) {
     const mark = m[2] === "1" ? "ˈ" : m[2] === "2" ? "ˌ" : "";
     out += mark + onset + sym;
     onset = "";
-    seenVowel = true;
   }
   return `/${out}${onset}/`;
 }
@@ -95,18 +95,22 @@ async function fetchIpa(word) {
 
 export function parseWordList(text) {
   const seen = new Set();
-  return text.split(/\r?\n/).map((l) => l.trim()).filter((l) => /^[A-Za-z'-]+$/.test(l) && !seen.has(l.toLowerCase()) && seen.add(l.toLowerCase()));
+  return text
+    .replace(/^\uFEFF/, "")
+    .split(/\r?\n/)
+    .map((l) => l.trim().replace(/\s+/g, " "))
+    .filter((l) => /^[A-Za-z'-]+( [A-Za-z'-]+)*$/.test(l) && !seen.has(l.toLowerCase()) && seen.add(l.toLowerCase()));
 }
 
 const FIXIE = "https://fixie.tools/api/syllables";
 
 // Convert a Fixie result to an entry, keeping the word's original casing.
 function fromFixie(word, r) {
-  if (!r?.ipa || !r.syllables?.length) return null;
+  if (!r?.syllables?.length) return null;
   let syllables = r.syllables;
   if (syllables.join("").toLowerCase() !== word.toLowerCase()) syllables = syllabify(word);
   else { let p = 0; syllables = syllables.map((s) => { const o = word.slice(p, p + s.length); p += s.length; return o; }); }
-  return { word, syllables, ipa: r.ipa };
+  return { word, syllables, ipa: r.ipa || "" };
 }
 
 function remember(entry) {
@@ -117,11 +121,23 @@ function remember(entry) {
 export async function lookup(word) {
   const key = word.toLowerCase();
   if (cache[key]) return cache[key];
-  const fx = fromFixie(word, await getJson(`${FIXIE}?word=${encodeURIComponent(key)}`));
-  if (fx) { remember(fx); return fx; }
-  const entry = { word, syllables: syllabify(word), ipa: await fetchIpa(key) };
-  if (entry.ipa) remember(entry); // failures aren't cached so they are retried
+  const entry = fromFixie(word, await getJson(`${FIXIE}?word=${encodeURIComponent(key)}`)) || { word, syllables: syllabify(word), ipa: "" };
+  if (!entry.ipa) entry.ipa = await fetchIpa(key);
+  if (entry.ipa) remember(entry); // entries without IPA aren't cached so they are retried
   return entry;
+}
+
+// Fill in missing IPA in place after the scan, so the game never waits on slow lookups.
+async function enrichIpa(entries) {
+  let next = 0;
+  const worker = async () => {
+    while (next < entries.length) {
+      const e = entries[next++];
+      e.ipa = await fetchIpa(e.word.toLowerCase()).catch(() => "");
+      if (e.ipa) remember(e);
+    }
+  };
+  await Promise.all([worker(), worker(), worker(), worker()]);
 }
 
 // Batch-resolve uncached words via Fixie (100 per request), then fall back per word.
@@ -130,6 +146,7 @@ export async function scanWords(words, onProgress) {
   let done = 0;
   const report = () => onProgress?.(++done, words.length);
   const missing = [];
+  const noIpa = [];
   words.forEach((w, i) => {
     const hit = cache[w.toLowerCase()];
     if (hit) { out[i] = hit; report(); } else missing.push(i);
@@ -148,7 +165,7 @@ export async function scanWords(words, onProgress) {
     const byWord = new Map((res || []).map((x) => [x.word.toLowerCase(), x]));
     for (const i of chunk) {
       const fx = fromFixie(words[i], byWord.get(words[i].toLowerCase()));
-      if (fx) { remember(fx); out[i] = fx; report(); }
+      if (fx) { if (fx.ipa) remember(fx); else noIpa.push(fx); out[i] = fx; report(); }
     }
   }
   // Anything the batch didn't resolve uses the single-word fallbacks.
@@ -162,5 +179,6 @@ export async function scanWords(words, onProgress) {
     }
   };
   await Promise.all([worker(), worker(), worker(), worker()]);
+  enrichIpa(noIpa);
   return out;
 }
