@@ -26,15 +26,11 @@ jobs:
     - name: Install dependencies
       run: npm ci
 
-    - name: Bump release version
-      run: |
-        git config user.name "github-actions[bot]"
-        git config user.email "github-actions[bot]@users.noreply.github.com"
-        npm version patch -m "Release v%s [skip ci]"
-        git push
-        git push --tags
-
     - name: Build and deploy
+      run: npm run deploy
+      env:
+        CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       run: npm run deploy
       env:
         CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
