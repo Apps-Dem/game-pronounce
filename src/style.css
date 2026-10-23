@@ -76,6 +76,13 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: #fff; font-f
 .mic.live { border-color: #fecaca; animation: pulse 1s infinite; }
 @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(239,68,68,.8); } 100% { box-shadow: 0 0 0 40px rgba(239,68,68,0); } }
 
+/* Spelling hint styling */
+.slot.spelling-hint {
+  color: #a7f3d0;
+  font-weight: 700;
+  text-shadow: none;
+}
+
 /* Menu labels styling */
 .menu-labels {
   display: flex;

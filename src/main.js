@@ -29,6 +29,7 @@ const rules = () => ({
   slots: level >= 3,
   silent: level >= 4,
   ipaOnly: level >= 5,
+  spelling: level >= 6,
 });
 
 const saveLists = () => localStorage.setItem(LISTS_KEY, JSON.stringify(lists));
@@ -59,11 +60,25 @@ function renderWord(entry, reveal = false) {
   const w = $("word");
   w.innerHTML = "";
   if (r.slots && !reveal) {
-    if (!r.ipaOnly) for (const ch of entry.word) { const s = document.createElement("span"); s.className = ch === " " ? "gap" : "slot"; s.textContent = "\u00A0"; s.dataset.ch = ch; w.append(s); }
+    if (!r.ipaOnly) {
+      for (const ch of entry.word) {
+        const s = document.createElement("span");
+        s.className = ch === " " ? "gap" : "slot";
+        s.textContent = "\u00A0";
+        s.dataset.ch = ch;
+        // Spelling mode: reveal first letter as a hint
+        if (r.spelling && ch !== " " && entry.word.indexOf(ch) === 0) {
+          s.textContent = ch;
+          s.classList.add("spelling-hint");
+        }
+        w.append(s);
+      }
+    }
   } else w.textContent = entry.word;
   const sy = $("syllables");
   sy.innerHTML = "";
-  if (!r.ipaOnly || reveal) entry.syllables.forEach((s) => { const e = document.createElement("span"); e.className = "syl"; e.textContent = s; sy.append(e); });
+  // Spelling mode: hide the syllable guide
+  if (!r.ipaOnly || reveal || !r.spelling) entry.syllables.forEach((s) => { const e = document.createElement("span"); e.className = "syl"; e.textContent = s; sy.append(e); });
   $("ipa").textContent = entry.ipa || "";
   $("ipa").classList.toggle("large", r.ipaOnly);
 }
