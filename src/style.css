@@ -110,3 +110,10 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: #fff; font-f
   color: #64748b;
   font-size: .65rem;
 }
+
+.label-version {
+  color: rgba(100,116,139,.55);
+  font-size: .58rem;
+  font-weight: 300;
+  line-height: 1.2;
+}

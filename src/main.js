@@ -1,4 +1,5 @@
 import { createScene } from "./scene.js";
+import packageInfo from "../package.json";
 import { parseWordList, scanWords, lookup } from "./lexicon.js";
 import { sayWord, cancelSpeech, listen, stopListening, score as scoreSpeech, speechSupported } from "./speech.js";
 
@@ -209,6 +210,27 @@ function showWords() {
   $("menu").hidden = true;
   $("wordsDlg").showModal();
 }
+
+async function downloadWords() {
+  const button = $("downloadWordsBtn");
+  button.disabled = true;
+  const originalText = button.textContent;
+  button.textContent = "Preparing list…";
+  try {
+    await scanDone;
+    const content = entries.map((entry) => `${entry.word}: ${entry.syllables.join("·")}`).join("\n");
+    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${currentList.replace(/[^A-Za-z0-9_-]+/g, "-")}-syllables.txt`;
+    link.click();
+    URL.revokeObjectURL(url);
+  } finally {
+    button.disabled = false;
+    button.textContent = originalText;
+  }
+}
 const esc = (s) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
 async function startList(name) {
@@ -300,7 +322,9 @@ $("nextBtn").onclick = () => {
   if (firstPending) { firstPending = false; loadWord(); } else nextWord();
 };
 $("viewWordsBtn").onclick = showWords;
+$("downloadWordsBtn").onclick = downloadWords;
 $("wordsClose").onclick = () => $("wordsDlg").close();
 
+$("versionLabel").textContent = `v${packageInfo.version}`;
 fillListSelect();
 startList(currentList);
