@@ -12,6 +12,10 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        # Full history so the workflow can push the version bump and tag back
+        fetch-depth: 0
+        persist-credentials: true
     
     - name: Setup Node.js
       uses: actions/setup-node@v4
@@ -21,7 +25,7 @@ jobs:
     
     - name: Install dependencies
       run: npm ci
-    
+
     - name: Build and deploy
       run: npm run deploy
       env:

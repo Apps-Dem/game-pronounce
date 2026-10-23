@@ -69,13 +69,29 @@ export function listen() {
     rec = new SR();
     rec.lang = "en-US";
     rec.maxAlternatives = 5;
-    rec.interimResults = false;
+    rec.interimResults = true;
+    let finalTranscript = "";
+    let finalConfidence = 0;
     rec.onresult = (e) => {
       const r = e.results[0];
+      const transcript = Array.from(r, (a) => a.transcript).join("");
+      const confidence = r[r.length - 1].confidence;
+      // Track the best final-looking result
+      if (r[r.length - 1].isFinal) {
+        finalTranscript = transcript;
+        finalConfidence = confidence;
+      }
       resolve(Array.from(r, (a) => ({ transcript: a.transcript, confidence: a.confidence })));
     };
     rec.onerror = (e) => reject(new Error(e.error === "no-speech" ? "I didn't hear anything." : `Microphone error: ${e.error}`));
-    rec.onend = () => resolve([]);
+    rec.onend = () => {
+      // Resolve with whatever final result we captured
+      if (finalTranscript) {
+        resolve([{ transcript: finalTranscript, confidence: finalConfidence }]);
+      } else {
+        resolve([]);
+      }
+    };
     rec.start();
   });
 }
