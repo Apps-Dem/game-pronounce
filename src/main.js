@@ -162,7 +162,7 @@ async function loadWord() {
 
 async function toggleMic() {
   if (!canListen || busy || solved) return;
-  if (listening) { stopListening(); return; }
+  if (listening) { stopListening(); listening = false; enableMic(); setFeedback("Listening stopped."); return; }
   listening = true;
   setMic("live", "Tap to stop");
   setFeedback("");
