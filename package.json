@@ -7,7 +7,7 @@
     "dev": "vite",
     "preview": "vite preview",
     "build": "vite build",
-    "deploy": "vite build && wrangler deploy"
+    "deploy": "vite build && wrangler d1 migrations apply pronounce-results --remote && wrangler deploy"
   },
   "dependencies": {
     "three": "^0.170.0"

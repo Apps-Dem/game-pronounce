@@ -24,12 +24,18 @@ The workflow in `.github/workflows/deploy-to-cloudflare.yml` runs `npm run deplo
 ### Manual Deployment:
 ```bash
 npx wrangler login
+# Apply D1 migrations (one-time setup for remote database):
+npx wrangler d1 migrations apply pronounce-results --remote
+# For local development database:
+npx wrangler d1 migrations apply pronounce-results --local
 npm run deploy
 ```
 
 ### For local development:
 ```bash
 npm install
+# Apply D1 migrations to local database:
+npx wrangler d1 migrations apply pronounce-results --local
 npm run dev
 ```
 
