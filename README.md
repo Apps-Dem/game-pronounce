@@ -36,8 +36,12 @@ npm run deploy
 npm install
 # Apply D1 migrations to local database:
 npx wrangler d1 migrations apply pronounce-results --local
-npm run dev
+# Run the game with the Worker API and local D1 database:
+npm run build
+npx wrangler dev
 ```
+
+`npm run dev` starts only the Vite dev server, which does not serve `/api/results`; use `wrangler dev` when testing result logging.
 
 ### Important Notes:
 - The project uses Vite for bundling

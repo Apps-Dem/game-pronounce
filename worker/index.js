@@ -45,16 +45,48 @@ function adminAuthorized(request, env) {
   return token === configured;
 }
 
+const MAX_BODY_BYTES = 16_384;
+const MAX_DEVICE_INFO_LENGTH = 4000;
+
+async function readLimitedBody(request) {
+  if (!request.body) return "";
+  const reader = request.body.getReader();
+  const chunks = [];
+  let received = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    received += value.byteLength;
+    if (received > MAX_BODY_BYTES) {
+      await reader.cancel();
+      return null;
+    }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(received);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder().decode(bytes);
+}
+
 async function handleResult(request, env) {
   if (!env.DB) return apiJson(request, { error: "Database is not configured." }, 503);
   const contentLength = Number(request.headers.get("content-length") || 0);
-  if (contentLength > 16_384) return apiJson(request, { error: "Request is too large." }, 413);
+  if (contentLength > MAX_BODY_BYTES) return apiJson(request, { error: "Request is too large." }, 413);
 
   let body;
   try {
-    body = await request.json();
+    const text = await readLimitedBody(request);
+    if (text === null) return apiJson(request, { error: "Request is too large." }, 413);
+    body = JSON.parse(text);
   } catch {
     return apiJson(request, { error: "Expected a JSON request body." }, 400);
+  }
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return apiJson(request, { error: "Expected a JSON object request body." }, 400);
   }
 
   const targetWord = cleanString(body.targetWord, 200);
@@ -73,6 +105,10 @@ async function handleResult(request, env) {
   if (body.deviceInfo && typeof body.deviceInfo === "object" && !Array.isArray(body.deviceInfo)) {
     deviceInfo = body.deviceInfo;
   }
+  const deviceInfoJson = JSON.stringify(deviceInfo);
+  if (deviceInfoJson.length > MAX_DEVICE_INFO_LENGTH) {
+    return apiJson(request, { error: "deviceInfo is too large." }, 413);
+  }
 
   try {
     await env.DB.prepare(`
@@ -86,7 +122,7 @@ async function handleResult(request, env) {
       confidence,
       score,
       passed,
-      JSON.stringify(deviceInfo).slice(0, 4000),
+      deviceInfoJson,
       cleanString(request.headers.get("User-Agent"), 500) || null,
     ).run();
   } catch (error) {
