@@ -3,6 +3,8 @@ name: Deploy to Cloudflare Workers
 on:
   push:
     branches: [ main ]
+  pull_request:
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
@@ -31,3 +33,27 @@ jobs:
       env:
         CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+  preview:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Build
+      run: npm run build
+    
+    - name: Preview URL
+      run: |
+        echo "PR Preview URL: https://${{ github.event.pull_request.head.repo.full_name }}-${{ github.event.pull_request.number }}.workers.dev"
+        echo "To configure a custom subdomain like pr-123.pronounce.alldem.app, add a CNAME record pointing to the workers.dev URL above."
