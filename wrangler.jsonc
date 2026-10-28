@@ -1,10 +1,20 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "pronounce-game",
+  "main": "worker/index.js",
   "compatibility_date": "2026-10-19",
   "assets": {
-    "directory": "./dist"
+    "directory": "./dist",
+    "binding": "ASSETS"
   },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "pronounce-results",
+      "database_id": "62e7ae2c-93e1-4fef-bb30-a2bf4702767f",
+      "migrations_dir": "migrations"
+    }
+  ],
   "routes": [
     { "pattern": "pronounce.alldem.app", "custom_domain": true }
   ]

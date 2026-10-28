@@ -1,7 +1,7 @@
 import { createScene } from "./scene.js";
 import packageInfo from "../package.json";
 import { parseWordList, scanWords, lookup } from "./lexicon.js";
-import { sayWord, cancelSpeech, listen, stopListening, score as scoreSpeech, speechSupported } from "./speech.js";
+import { sayWord, cancelSpeech, listen, stopListening, score as scoreSpeech, speechSupported, getMicDeviceInfo, micDebug } from "./speech.js";
 
 const $ = (id) => document.getElementById(id);
 const fx = createScene($("scene"));
@@ -170,16 +170,49 @@ async function toggleMic() {
     const alts = await listen();
     listening = false;
     if (solved) return;
-    if (!alts.length) { enableMic(); setFeedback("I didn't catch that. Try again!", "bad"); return; }
+    if (!alts.length) {
+      logSpeechResult(entries[idx], [], 0, false);
+      enableMic();
+      setFeedback("I didn't catch that. Try again!", "bad");
+      return;
+    }
     const s = scoreSpeech(entries[idx], alts);
     const pct = Math.round(s * 100);
-    if (s >= PASS) { finishWord(true); setFeedback(`Great! ${pct}% confidence ✔ (heard "${alts[0].transcript}")`, "ok"); }
+    const passed = s >= PASS;
+    logSpeechResult(entries[idx], alts, s, passed);
+    if (passed) { finishWord(true); setFeedback(`Great! ${pct}% confidence ✔ (heard "${alts[0].transcript}")`, "ok"); }
     else { enableMic(); setFeedback(`${pct}% – need ${PASS * 100}%. I heard "${alts[0].transcript}". Try again!`, "bad"); }
   } catch (e) {
     listening = false;
     if (!solved) enableMic();
     setFeedback(e.message, "bad");
   }
+}
+
+function logSpeechResult(entry, alternatives, resultScore, passed) {
+  const best = alternatives.reduce((current, alternative) => {
+    if (!current || (alternative.confidence || 0) > (current.confidence || 0)) return alternative;
+    return current;
+  }, alternatives[0] || { transcript: "", confidence: null });
+  const payload = {
+    targetWord: entry.word,
+    targetSyllables: entry.syllables,
+    transcript: best.transcript || "",
+    confidence: Number.isFinite(best.confidence) ? best.confidence : null,
+    score: resultScore,
+    passed,
+    deviceInfo: getMicDeviceInfo(),
+  };
+  micDebug("scored", payload);
+  fetch("/api/results", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(payload),
+    keepalive: true,
+  }).then((response) => {
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    micDebug("stored", { status: response.status });
+  }).catch((error) => micDebug("store-error", { message: error.message }));
 }
 
 function nextWord() {
