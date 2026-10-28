@@ -24,14 +24,24 @@ The workflow in `.github/workflows/deploy-to-cloudflare.yml` runs `npm run deplo
 ### Manual Deployment:
 ```bash
 npx wrangler login
+# Apply D1 migrations (one-time setup for remote database):
+npx wrangler d1 migrations apply pronounce-results --remote
+# For local development database:
+npx wrangler d1 migrations apply pronounce-results --local
 npm run deploy
 ```
 
 ### For local development:
 ```bash
 npm install
-npm run dev
+# Apply D1 migrations to local database:
+npx wrangler d1 migrations apply pronounce-results --local
+# Run the game with the Worker API and local D1 database:
+npm run build
+npx wrangler dev
 ```
+
+`npm run dev` starts only the Vite dev server, which does not serve `/api/results`; use `wrangler dev` when testing result logging.
 
 ### Important Notes:
 - The project uses Vite for bundling

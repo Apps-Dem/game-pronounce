@@ -1,7 +1,25 @@
 const synth = window.speechSynthesis;
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const debugRequested = new URLSearchParams(location.search).has("debugMic") || localStorage.getItem("pronounce.debugMic") === "1";
 
 export const speechSupported = { tts: !!synth, stt: !!SR };
+export const micDebugEnabled = debugRequested;
+export function micDebug(label, details = {}) {
+  if (micDebugEnabled) console.debug(`[mic] ${label}`, details);
+}
+
+export function getMicDeviceInfo() {
+  return {
+    userAgent: navigator.userAgent,
+    platform: navigator.platform || "",
+    language: navigator.language || "",
+    vendor: navigator.vendor || "",
+    maxTouchPoints: navigator.maxTouchPoints || 0,
+    screen: `${window.screen?.width || 0}x${window.screen?.height || 0}`,
+    deviceMemory: navigator.deviceMemory || null,
+    connection: navigator.connection?.effectiveType || null,
+  };
+}
 
 function speak(text, rate = 0.8) {
   return new Promise((resolve) => {
@@ -70,29 +88,59 @@ export function listen() {
     rec.lang = "en-US";
     rec.maxAlternatives = 5;
     rec.interimResults = true;
+    const startedAt = performance.now();
     let finalTranscript = "";
     let finalConfidence = 0;
+    let resultEvents = 0;
+    micDebug("start", { language: rec.lang, maxAlternatives: rec.maxAlternatives, device: getMicDeviceInfo() });
+    rec.onstart = () => micDebug("onstart");
+    rec.onaudiostart = () => micDebug("onaudiostart");
+    rec.onsoundstart = () => micDebug("onsoundstart");
+    rec.onspeechstart = () => micDebug("onspeechstart");
+    rec.onspeechend = () => micDebug("onspeechend");
     rec.onresult = (e) => {
-      const r = e.results[0];
-      const transcript = Array.from(r, (a) => a.transcript).join("");
-      const confidence = r[r.length - 1].confidence;
-      // Track the best final-looking result
-      if (r[r.length - 1].isFinal) {
+      resultEvents++;
+      const r = e.results[e.resultIndex] || e.results[e.results.length - 1];
+      const alternatives = Array.from(r, (a) => ({ transcript: a.transcript, confidence: a.confidence }));
+      const transcript = alternatives.map((a) => a.transcript).join("");
+      const confidence = alternatives[alternatives.length - 1]?.confidence || 0;
+      micDebug("result", {
+        resultIndex: e.resultIndex,
+        isFinal: Boolean(r?.isFinal),
+        alternatives,
+        elapsedMs: Math.round(performance.now() - startedAt),
+      });
+      if (r?.isFinal) {
         finalTranscript = transcript;
         finalConfidence = confidence;
       }
-      resolve(Array.from(r, (a) => ({ transcript: a.transcript, confidence: a.confidence })));
+      // Resolve early so the game remains responsive; onend records the final lifecycle metrics.
+      resolve(alternatives);
     };
-    rec.onerror = (e) => reject(new Error(e.error === "no-speech" ? "I didn't hear anything." : `Microphone error: ${e.error}`));
+    rec.onerror = (e) => {
+      micDebug("error", { error: e.error, message: e.message || "", elapsedMs: Math.round(performance.now() - startedAt) });
+      reject(new Error(e.error === "no-speech" ? "I didn't hear anything." : `Microphone error: ${e.error}`));
+    };
     rec.onend = () => {
-      // Resolve with whatever final result we captured
-      if (finalTranscript) {
-        resolve([{ transcript: finalTranscript, confidence: finalConfidence }]);
-      } else {
-        resolve([]);
-      }
+      micDebug("end", {
+        elapsedMs: Math.round(performance.now() - startedAt),
+        resultEvents,
+        finalTranscript,
+        finalConfidence,
+      });
+      // Resolve with whatever final result we captured if no result event resolved first.
+      if (finalTranscript) resolve([{ transcript: finalTranscript, confidence: finalConfidence }]);
+      else if (!resultEvents) resolve([]);
     };
-    rec.start();
+    try {
+      rec.start();
+    } catch (error) {
+      micDebug("start-error", { message: error.message });
+      reject(error);
+    }
   });
 }
-export function stopListening() { try { rec?.abort(); } catch { /* not running */ } }
+export function stopListening() {
+  micDebug("stop", { active: Boolean(rec) });
+  try { rec?.abort(); } catch { /* not running */ }
+}
