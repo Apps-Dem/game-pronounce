@@ -1,7 +1,7 @@
 import { createScene } from "./scene.js";
 import packageInfo from "../package.json";
 import { parseWordList, scanWords, lookup } from "./lexicon.js";
-import { sayWord, cancelSpeech, listen, stopListening, score as scoreSpeech, speechSupported, getMicDeviceInfo, micDebug } from "./speech.js";
+import { sayWord, cancelSpeech, listen, stopListening, score as scoreSpeech, speechSupported, useRecorder, getMicDeviceInfo, micDebug } from "./speech.js";
 
 const $ = (id) => document.getElementById(id);
 const fx = createScene($("scene"));
@@ -177,6 +177,7 @@ async function loadWord() {
 
 async function toggleMic() {
   if (!canListen || busy || solved) return;
+  if (listening && useRecorder) { stopListening(); setMic("live", "Processing…"); return; }
   if (listening) { stopListening(); listening = false; enableMic(); setFeedback("Listening stopped."); return; }
   listening = true;
   setMic("live", "Tap to stop");

@@ -2,7 +2,11 @@ const synth = window.speechSynthesis;
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 const debugRequested = new URLSearchParams(location.search).has("debugMic") || localStorage.getItem("pronounce.debugMic") === "1";
 
-export const speechSupported = { tts: !!synth, stt: !!SR };
+const recorderSupported = !!(navigator.mediaDevices?.getUserMedia && window.MediaRecorder);
+const forceRecorder = new URLSearchParams(location.search).has("recorder");
+// Browsers without Web Speech recognition (e.g. Firefox, Samsung Internet on Android tablets) fall back to recording audio for server transcription.
+export const useRecorder = recorderSupported && (!SR || forceRecorder);
+export const speechSupported = { tts: !!synth, stt: !!SR || recorderSupported };
 export const micDebugEnabled = debugRequested;
 export function micDebug(label, details = {}) {
   if (micDebugEnabled) console.debug(`[mic] ${label}`, details);
@@ -81,7 +85,38 @@ export function score(entry, alternatives) {
 }
 
 let rec = null;
+let recorder = null;
+const MAX_RECORD_MS = 5000;
+
+async function listenRecorded() {
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch (e) {
+    throw new Error(e.name === "NotAllowedError" ? "Microphone permission was denied." : "Could not access the microphone.");
+  }
+  const mr = new MediaRecorder(stream);
+  recorder = mr;
+  const chunks = [];
+  mr.ondataavailable = (e) => { if (e.data?.size) chunks.push(e.data); };
+  const stopped = new Promise((resolve) => { mr.onstop = resolve; });
+  mr.start();
+  micDebug("recorder-start", { mimeType: mr.mimeType });
+  const timer = setTimeout(() => { if (mr.state !== "inactive") mr.stop(); }, MAX_RECORD_MS);
+  await stopped;
+  clearTimeout(timer);
+  stream.getTracks().forEach((t) => t.stop());
+  recorder = null;
+  const blob = new Blob(chunks, { type: mr.mimeType || "audio/webm" });
+  if (!blob.size) return [];
+  const res = await fetch("/api/transcribe", { method: "POST", headers: { "content-type": blob.type }, body: blob });
+  if (!res.ok) throw new Error("Could not transcribe the recording.");
+  const { transcript } = await res.json();
+  return transcript ? [{ transcript, confidence: 0 }] : [];
+}
+
 export function listen() {
+  if (useRecorder) return listenRecorded();
   return new Promise((resolve, reject) => {
     if (!SR) return reject(new Error("Speech recognition is not supported in this browser. Try Chrome, Edge or Safari."));
     rec = new SR();
@@ -141,6 +176,10 @@ export function listen() {
   });
 }
 export function stopListening() {
-  micDebug("stop", { active: Boolean(rec) });
+  micDebug("stop", { active: Boolean(rec || recorder) });
+  if (recorder) {
+    try { if (recorder.state !== "inactive") recorder.stop(); } catch { /* not running */ }
+    return;
+  }
   try { rec?.abort(); } catch { /* not running */ }
 }
