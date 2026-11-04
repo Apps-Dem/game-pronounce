@@ -47,6 +47,7 @@ function adminAuthorized(request, env) {
 
 const MAX_BODY_BYTES = 16_384;
 const MAX_DEVICE_INFO_LENGTH = 4000;
+const MAX_DEBUG_DETAILS_LENGTH = 6000;
 
 async function readLimitedBody(request) {
   if (!request.body) return "";
@@ -128,6 +129,52 @@ async function handleResult(request, env) {
   } catch (error) {
     console.error("[api] failed to store speech result", error);
     return apiJson(request, { error: "Could not store speech result." }, 500);
+  }
+
+  return apiJson(request, { ok: true }, 201);
+}
+
+async function handleDebugEvent(request, env) {
+  if (!env.DB) return apiJson(request, { error: "Database is not configured." }, 503);
+  const contentLength = Number(request.headers.get("content-length") || 0);
+  if (contentLength > MAX_BODY_BYTES) return apiJson(request, { error: "Request is too large." }, 413);
+
+  let body;
+  try {
+    const text = await readLimitedBody(request);
+    if (text === null) return apiJson(request, { error: "Request is too large." }, 413);
+    body = JSON.parse(text);
+  } catch {
+    return apiJson(request, { error: "Expected a JSON request body." }, 400);
+  }
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return apiJson(request, { error: "Expected a JSON object request body." }, 400);
+  }
+
+  const event = cleanString(body.event, 80);
+  if (!event) return apiJson(request, { error: "event is required." }, 400);
+  const sessionId = cleanString(body.sessionId, 100) || null;
+  const details = body.details && typeof body.details === "object" && !Array.isArray(body.details)
+    ? body.details
+    : {};
+  const detailsJson = JSON.stringify(details);
+  if (detailsJson.length > MAX_DEBUG_DETAILS_LENGTH) {
+    return apiJson(request, { error: "details are too large." }, 413);
+  }
+
+  try {
+    await env.DB.prepare(`
+      INSERT INTO debug_mic_events (session_id, event, details_json, user_agent)
+      VALUES (?, ?, ?, ?)
+    `).bind(
+      sessionId,
+      event,
+      detailsJson,
+      cleanString(request.headers.get("User-Agent"), 500) || null,
+    ).run();
+  } catch (error) {
+    console.error("[api] failed to store debug microphone event", error);
+    return apiJson(request, { error: "Could not store debug event." }, 500);
   }
 
   return apiJson(request, { ok: true }, 201);
@@ -216,6 +263,7 @@ async function handleApi(request, env, url) {
     });
   }
   if (url.pathname === "/api/results" && request.method === "POST") return handleResult(request, env);
+  if (url.pathname === "/api/debug" && request.method === "POST") return handleDebugEvent(request, env);
   if (url.pathname === "/api/transcribe" && request.method === "POST") return handleTranscribe(request, env);
   if (url.pathname === "/api/admin/summary" && request.method === "GET") return handleAdminSummary(request, env);
   return apiJson(request, { error: "Not found." }, 404);

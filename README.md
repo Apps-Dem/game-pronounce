@@ -43,6 +43,11 @@ npx wrangler dev
 
 `npm run dev` starts only the Vite dev server, which does not serve `/api/results`; use `wrangler dev` when testing result logging.
 
+When microphone debug mode is enabled with `?debugMic=1` or `localStorage.setItem("pronounce.debugMic", "1")`, its diagnostic events are also stored in the `debug_mic_events` D1 table. Each event includes its details, browser user agent, timestamp, and a session ID to group events from the same page load. These diagnostics can include recognized transcripts and device information. To inspect recent events:
+```bash
+npx wrangler d1 execute pronounce-results --remote --command "SELECT created_at, session_id, event, details_json, user_agent FROM debug_mic_events ORDER BY id DESC LIMIT 100"
+```
+
 ### Important Notes:
 - The project uses Vite for bundling
 - Wrangler deploys the built `dist` directory as static assets
