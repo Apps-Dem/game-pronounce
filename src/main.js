@@ -17,6 +17,17 @@ unsupportedOverlay.innerHTML = `
 document.body.appendChild(unsupportedOverlay);
 unsupportedOverlay.hidden = !speechSupported.stt;
 
+// Overlay for browsers without text-to-speech support
+const unsupportedTtsOverlay = document.createElement("div");
+unsupportedTtsOverlay.className = "unsupported-tts";
+unsupportedTtsOverlay.innerHTML = `
+  <span>⚠️ Text-to-speech not supported</span>
+  <p class="hint">This browser doesn't support the Web Speech Synthesis API. Some word pronunciations may not be available.</p>
+  <button class="btn small" id="unsupportedTtsClose">Close</button>
+`;
+document.body.appendChild(unsupportedTtsOverlay);
+unsupportedTtsOverlay.hidden = !!speechSupported.tts;
+
 const PASS = 0.8;
 const TIME_LIMIT = 60;
 const AUTO_START = 30;
@@ -392,3 +403,4 @@ fillListSelect();
 startList(currentList);
 
 $("unsupportedClose").onclick = () => { unsupportedOverlay.hidden = true; };
+$("unsupportedTtsClose").onclick = () => { unsupportedTtsOverlay.hidden = true; };

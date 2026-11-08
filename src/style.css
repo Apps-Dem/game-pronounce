@@ -94,6 +94,17 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: #fff; font-f
 .unsupported-stt .hint { color: #cbd5e1; font-size: 1rem; margin-top: 12px; }
 .unsupported-stt .btn { margin-top: 20px; }
 
+/* Text-to-speech unsupported overlay */
+.unsupported-tts {
+  position: fixed; inset: 0; z-index: 9999;
+  background: rgba(17,23,35,.92); border: 3px solid #f59e0b; border-radius: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  color: #fbbf24; font-weight: 700; font-size: 1.4rem; min-height: 100%;
+  padding: 24px; text-align: center; line-height: 1.4;
+}
+.unsupported-tts .hint { color: #cbd5e1; font-size: 1rem; margin-top: 12px; }
+.unsupported-tts .btn { margin-top: 20px; }
+
 /* Menu labels styling */
 .menu-labels {
   display: flex;
