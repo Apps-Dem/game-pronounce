@@ -1,7 +1,7 @@
 import { createScene } from "./scene.js";
 import packageInfo from "../package.json";
 import { parseWordList, scanWords, lookup } from "./lexicon.js";
-import { sayWord, cancelSpeech, listen, stopListening, score as scoreSpeech, speechSupported, useRecorder, getMicDeviceInfo, micDebug } from "./speech.js";
+import { sayWord, cancelSpeech, listen, stopListening, prepareMic, releaseMic, score as scoreSpeech, speechSupported, useRecorder, getMicDeviceInfo, micDebug } from "./speech.js";
 
 const $ = (id) => document.getElementById(id);
 const fx = createScene($("scene"));
@@ -119,6 +119,7 @@ function timeUp() {
 function finishWord(success) {
   solved = true;
   stopTimer();
+  releaseMic();
   highlight(-1);
   renderWord(entries[idx], true);
   setMic("off", "Done");
@@ -147,6 +148,7 @@ async function say() {
 function enableMic() {
   canListen = true;
   setMic("ready", "Tap to speak");
+  prepareMic();
 }
 
 async function loadWord() {
@@ -286,7 +288,7 @@ async function startList(name) {
   stopAutoStart();
   firstPending = false;
   currentList = name;
-  cancelSpeech(); stopListening(); stopTimer();
+  cancelSpeech(); stopListening(); releaseMic(); stopTimer();
   started = false;
   setMic("off", "Wait…");
   entries = [];
