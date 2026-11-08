@@ -6,6 +6,17 @@ import { sayWord, cancelSpeech, listen, stopListening, prepareMic, releaseMic, s
 const $ = (id) => document.getElementById(id);
 const fx = createScene($("scene"));
 
+// Overlay for browsers without speech input support
+const unsupportedOverlay = document.createElement("div");
+unsupportedOverlay.className = "unsupported-stt";
+unsupportedOverlay.innerHTML = `
+  <span>⚠️ Speech input not supported</span>
+  <p class="hint">This browser doesn't support the Web Speech API. Use Chrome, Edge, or Safari for best results.</p>
+  <button class="btn small" id="unsupportedClose">Close</button>
+`;
+document.body.appendChild(unsupportedOverlay);
+unsupportedOverlay.hidden = !speechSupported.stt;
+
 const PASS = 0.8;
 const TIME_LIMIT = 60;
 const AUTO_START = 30;
@@ -379,3 +390,5 @@ $("wordsClose").onclick = () => $("wordsDlg").close();
 $("versionLabel").textContent = `v${packageInfo.version}`;
 fillListSelect();
 startList(currentList);
+
+$("unsupportedClose").onclick = () => { unsupportedOverlay.hidden = true; };
