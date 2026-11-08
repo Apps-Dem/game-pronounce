@@ -98,27 +98,64 @@ export function score(entry, alternatives) {
 
 let rec = null;
 let recorder = null;
-const MAX_RECORD_MS = 5000;
+let micStream = null;
+let micWarm = null;
+let stopRequested = false;
+const MAX_RECORD_MS = 10000;
+const RECORDER_TIMESLICE_MS = 250;
+
+function requestMic() {
+  if (!micWarm) {
+    micWarm = navigator.mediaDevices.getUserMedia({ audio: true })
+      .then((s) => { micStream = s; micDebug("mic-ready", { tracks: s.getTracks().length }); })
+      .catch((e) => { micDebug("mic-error", { name: e.name, message: e.message || "" }); throw e; })
+      .finally(() => { micWarm = null; });
+  }
+  return micWarm;
+}
+
+// Acquire the microphone as soon as the mic is enabled, so recording can start
+// immediately on tap instead of losing the start of the word to setup latency.
+export function prepareMic() {
+  if (!useRecorder || micStream || micWarm) return;
+  requestMic().catch(() => { /* surfaced again by listen() if still denied */ });
+}
+
+export function releaseMic() {
+  micStream?.getTracks().forEach((t) => t.stop());
+  micStream = null;
+}
 
 async function listenRecorded() {
-  let stream;
-  try {
-    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-  } catch (e) {
-    throw new Error(e.name === "NotAllowedError" ? "Microphone permission was denied." : "Could not access the microphone.");
+  stopRequested = false;
+  let stream = micStream;
+  if (!stream) {
+    try {
+      await requestMic();
+      stream = micStream;
+    } catch (e) {
+      throw new Error(e.name === "NotAllowedError" ? "Microphone permission was denied." : "Could not access the microphone.");
+    }
+  }
+  micStream = null;
+  if (stopRequested) {
+    stream.getTracks().forEach((t) => t.stop());
+    return [];
   }
   const mr = new MediaRecorder(stream);
   recorder = mr;
   const chunks = [];
   mr.ondataavailable = (e) => { if (e.data?.size) chunks.push(e.data); };
   const stopped = new Promise((resolve) => { mr.onstop = resolve; });
-  mr.start();
+  // Timeslice so audio is consumed continuously and a quick tap-to-stop still yields data.
+  mr.start(RECORDER_TIMESLICE_MS);
   micDebug("recorder-start", { mimeType: mr.mimeType });
   const timer = setTimeout(() => { if (mr.state !== "inactive") mr.stop(); }, MAX_RECORD_MS);
   await stopped;
   clearTimeout(timer);
   stream.getTracks().forEach((t) => t.stop());
   recorder = null;
+  stopRequested = false;
   const blob = new Blob(chunks, { type: mr.mimeType || "audio/webm" });
   if (!blob.size) return [];
   const res = await fetch("/api/transcribe", { method: "POST", headers: { "content-type": blob.type }, body: blob });
@@ -193,5 +230,7 @@ export function stopListening() {
     try { if (recorder.state !== "inactive") recorder.stop(); } catch { /* not running */ }
     return;
   }
+  // Recorder fallback: getUserMedia may still be pending, so flag the stop for listenRecorded().
+  if (useRecorder) stopRequested = true;
   try { rec?.abort(); } catch { /* not running */ }
 }

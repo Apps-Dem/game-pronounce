@@ -1,10 +1,32 @@
 import { createScene } from "./scene.js";
 import packageInfo from "../package.json";
 import { parseWordList, scanWords, lookup } from "./lexicon.js";
-import { sayWord, cancelSpeech, listen, stopListening, score as scoreSpeech, speechSupported, useRecorder, getMicDeviceInfo, micDebug } from "./speech.js";
+import { sayWord, cancelSpeech, listen, stopListening, prepareMic, releaseMic, score as scoreSpeech, speechSupported, useRecorder, getMicDeviceInfo, micDebug } from "./speech.js";
 
 const $ = (id) => document.getElementById(id);
 const fx = createScene($("scene"));
+
+// Overlay for browsers without speech input support
+const unsupportedOverlay = document.createElement("div");
+unsupportedOverlay.className = "unsupported-stt";
+unsupportedOverlay.innerHTML = `
+  <span>⚠️ Speech input not supported</span>
+  <p class="hint">This browser doesn't support the Web Speech API. Use Chrome, Edge, or Safari for best results.</p>
+  <button class="btn small" id="unsupportedClose">Close</button>
+`;
+document.body.appendChild(unsupportedOverlay);
+unsupportedOverlay.hidden = !speechSupported.stt;
+
+// Overlay for browsers without text-to-speech support
+const unsupportedTtsOverlay = document.createElement("div");
+unsupportedTtsOverlay.className = "unsupported-tts";
+unsupportedTtsOverlay.innerHTML = `
+  <span>⚠️ Text-to-speech not supported</span>
+  <p class="hint">This browser doesn't support the Web Speech Synthesis API. Some word pronunciations may not be available.</p>
+  <button class="btn small" id="unsupportedTtsClose">Close</button>
+`;
+document.body.appendChild(unsupportedTtsOverlay);
+unsupportedTtsOverlay.hidden = !!speechSupported.tts;
 
 const PASS = 0.8;
 const TIME_LIMIT = 60;
@@ -119,6 +141,7 @@ function timeUp() {
 function finishWord(success) {
   solved = true;
   stopTimer();
+  releaseMic();
   highlight(-1);
   renderWord(entries[idx], true);
   setMic("off", "Done");
@@ -147,6 +170,7 @@ async function say() {
 function enableMic() {
   canListen = true;
   setMic("ready", "Tap to speak");
+  prepareMic();
 }
 
 async function loadWord() {
@@ -286,7 +310,7 @@ async function startList(name) {
   stopAutoStart();
   firstPending = false;
   currentList = name;
-  cancelSpeech(); stopListening(); stopTimer();
+  cancelSpeech(); stopListening(); releaseMic(); stopTimer();
   started = false;
   setMic("off", "Wait…");
   entries = [];
@@ -377,3 +401,6 @@ $("wordsClose").onclick = () => $("wordsDlg").close();
 $("versionLabel").textContent = `v${packageInfo.version}`;
 fillListSelect();
 startList(currentList);
+
+$("unsupportedClose").onclick = () => { unsupportedOverlay.hidden = true; };
+$("unsupportedTtsClose").onclick = () => { unsupportedTtsOverlay.hidden = true; };
