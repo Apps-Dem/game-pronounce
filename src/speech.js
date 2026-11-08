@@ -1,6 +1,9 @@
 const synth = window.speechSynthesis;
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 const debugRequested = new URLSearchParams(location.search).has("debugMic") || localStorage.getItem("pronounce.debugMic") === "1";
+const debugSessionId = debugRequested
+  ? globalThis.crypto?.randomUUID?.() || `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
+  : null;
 
 const recorderSupported = !!(navigator.mediaDevices?.getUserMedia && window.MediaRecorder);
 const forceRecorder = new URLSearchParams(location.search).has("recorder");
@@ -9,7 +12,16 @@ export const useRecorder = recorderSupported && (!SR || forceRecorder);
 export const speechSupported = { tts: !!synth, stt: !!SR || recorderSupported };
 export const micDebugEnabled = debugRequested;
 export function micDebug(label, details = {}) {
-  if (micDebugEnabled) console.debug(`[mic] ${label}`, details);
+  if (!micDebugEnabled) return;
+  console.debug(`[mic] ${label}`, details);
+  fetch("/api/debug", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ sessionId: debugSessionId, event: label, details }),
+    keepalive: true,
+  }).then((response) => {
+    if (!response.ok) console.warn(`[mic] failed to store diagnostic (HTTP ${response.status})`);
+  }).catch((error) => console.warn("[mic] failed to store diagnostic", error));
 }
 
 export function getMicDeviceInfo() {
