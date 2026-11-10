@@ -43,7 +43,16 @@ jobs:
         CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         PR_NUMBER: ${{ github.event.pull_request.number }}
       run: |
-        output="$(npx wrangler preview --name "pr-$PR_NUMBER" --ignore-base-config --json)"
-        printf '%s\n' "$output"
-        preview_url="$(printf '%s' "$output" | jq -er '.preview.urls[0] | select(type == "string" and length > 0)')"
+        output_file="$(mktemp "$RUNNER_TEMP/wrangler-preview.XXXXXX")"
+        trap 'rm -f -- "$output_file"' EXIT
+        export WRANGLER_OUTPUT_FILE_PATH="$output_file"
+        npx wrangler preview --name "pr-$PR_NUMBER" --ignore-base-config --json
+        preview_url="$(jq -ser '
+          map(select(.type == "preview" and .version == 1)) |
+          if length == 1 then
+            .[0].preview_urls[0] | select(type == "string" and length > 0)
+          else
+            error("Expected one Wrangler preview result")
+          end
+        ' "$output_file")"
         printf '## Cloudflare PR preview\n\n%s\n' "$preview_url" >> "$GITHUB_STEP_SUMMARY"
