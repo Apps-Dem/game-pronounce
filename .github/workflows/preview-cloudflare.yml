@@ -1,0 +1,49 @@
+name: Cloudflare PR Preview
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+    - name: Require preview Access configuration
+      env:
+        PREVIEW_ACCESS_READY: ${{ vars.CLOUDFLARE_PREVIEW_ACCESS_READY }}
+      run: |
+        if [ "$PREVIEW_ACCESS_READY" != "true" ]; then
+          echo "::error::Configure Cloudflare Access for pronounce-game previews, then set the CLOUDFLARE_PREVIEW_ACCESS_READY repository variable to true."
+          exit 1
+        fi
+
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Build
+      run: npm run build
+
+    - name: Deploy PR preview
+      env:
+        CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+      run: |
+        output="$(npx wrangler preview --name "pr-$PR_NUMBER" --ignore-base-config --json)"
+        printf '%s\n' "$output"
+        preview_url="$(printf '%s' "$output" | jq -er '.preview.urls[0] | select(type == "string" and length > 0)')"
+        printf '## Cloudflare PR preview\n\n%s\n' "$preview_url" >> "$GITHUB_STEP_SUMMARY"

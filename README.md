@@ -19,16 +19,23 @@ A game for practicing word pronunciation with speech recognition.
 This project is deployed as a Cloudflare Worker with static assets (see `wrangler.jsonc`) at https://pronounce.alldem.app.
 
 ### Automatic Deployment with GitHub Actions
-The workflow in `.github/workflows/deploy-to-cloudflare.yml` runs `npm run deploy` on every push to `main`. It needs the repository secrets `CLOUDFLARE_API_TOKEN` (Workers edit permission plus DNS/zone access for the custom domain) and `CLOUDFLARE_ACCOUNT_ID`.
+The existing workflow in `.github/workflows/deploy-to-cloudflare.yml` runs `npm run deploy` on pushes to `main`, pull requests targeting `main`, and manual runs. **Its deploy job can deploy to production on pull requests and manual runs from non-default branches.** The repository secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` must authorize deployment to the existing Worker and its production resources.
 
-### Manual Deployment:
+The separate `.github/workflows/preview-cloudflare.yml` workflow creates or updates a Cloudflare Worker Preview named `pr-<number>` for pull requests from branches in this repository; the URL appears in the job log and GitHub Actions step summary. Pull requests from forks do not receive repository secrets and do not deploy previews. The original deployment workflow's preview job only prints a placeholder and does not create a preview.
+
+Before enabling PR previews:
+1. Configure Cloudflare Access for **previews only** on the `pronounce-game` Worker. Preview URLs are otherwise public. Verify that unauthenticated requests are blocked and intended users can sign in.
+2. Set the GitHub Actions repository variable `CLOUDFLARE_PREVIEW_ACCESS_READY` to `true`. This is an administrative confirmation, not an automatic check of the Access policy; remove or change it if protection is removed.
+3. Ensure the Worker's `workers.dev` Preview URLs are enabled. The `preview_urls` setting in `wrangler.jsonc` takes effect on the next production deployment from the default branch. See [Cloudflare's preview URL configuration](https://developers.cloudflare.com/workers/previews/custom-domains/).
+
+New previews are created with `--ignore-base-config` and do not bind the production D1 database. Existing preview secrets can persist across updates. Result and microphone debug logging and the admin dashboard API are therefore unavailable in previews. Workers AI remains enabled for server-side transcription and may incur usage charges. Preview resources are not automatically deleted when a PR closes.
+
+### Deployment validation
+
+To validate the Worker locally without deploying or applying remote migrations:
 ```bash
-npx wrangler login
-# Apply D1 migrations (one-time setup for remote database):
-npx wrangler d1 migrations apply pronounce-results --remote
-# For local development database:
-npx wrangler d1 migrations apply pronounce-results --local
-npm run deploy
+npm run build
+npx wrangler deploy --dry-run
 ```
 
 ### For local development:

@@ -8,6 +8,10 @@
     "binding": "ASSETS"
   },
   "ai": { "binding": "AI" },
+  "preview_urls": true,
+  "previews": {
+    "ai": { "binding": "AI" }
+  },
   "d1_databases": [
     {
       "binding": "DB",
