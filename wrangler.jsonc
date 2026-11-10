@@ -21,6 +21,6 @@
     }
   ],
   "routes": [
-    { "pattern": "pronounce.alldem.app", "custom_domain": true }
+    { "pattern": "pronounce.alldem.app", "custom_domain": true, "previews_enabled": true, "enabled": true }
   ]
 }
