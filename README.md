@@ -19,14 +19,14 @@ A game for practicing word pronunciation with speech recognition.
 This project is deployed as a Cloudflare Worker with static assets (see `wrangler.jsonc`) at https://pronounce.alldem.app.
 
 ### Automatic Deployment with GitHub Actions
-The existing workflow in `.github/workflows/deploy-to-cloudflare.yml` runs `npm run deploy` on pushes to `main`, pull requests targeting `main`, and manual runs. **Its deploy job can deploy to production on pull requests and manual runs from non-default branches.** The repository secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` must authorize deployment to the existing Worker and its production resources.
+The workflow in `.github/workflows/deploy-to-cloudflare.yml` runs `npm run deploy` on pushes to `main` and manual runs. **Manual runs can deploy to production from non-default branches.** The repository secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` must authorize deployment to the existing Worker and its production resources.
 
-The separate `.github/workflows/preview-cloudflare.yml` workflow creates or updates a Cloudflare Worker Preview named `pr-<number>` for pull requests from branches in this repository; the URL appears in the job log and GitHub Actions step summary. Pull requests from forks do not receive repository secrets and do not deploy previews. The original deployment workflow's preview job only prints a placeholder and does not create a preview.
+The separate `.github/workflows/preview-cloudflare.yml` workflow creates or updates a Cloudflare Worker Preview named `pr-<number>` for pull requests from branches in this repository; the URL appears in the job log and GitHub Actions step summary. Pull requests from forks do not receive repository secrets and do not deploy previews.
 
 Before enabling PR previews:
 1. Configure Cloudflare Access for **previews only** on the `pronounce-game` Worker. Preview URLs are otherwise public. Verify that unauthenticated requests are blocked and intended users can sign in.
 2. Set the GitHub Actions repository variable `CLOUDFLARE_PREVIEW_ACCESS_READY` to `true`. This is an administrative confirmation, not an automatic check of the Access policy; remove or change it if protection is removed.
-3. Ensure the Worker's `workers.dev` Preview URLs are enabled. The `preview_urls` setting in `wrangler.jsonc` takes effect on the next production deployment from the default branch. See [Cloudflare's preview URL configuration](https://developers.cloudflare.com/workers/previews/custom-domains/).
+3. Ensure at least one Preview host is enabled on the existing Worker. In the Cloudflare dashboard, open the Worker's **Domains** tab and enable **Preview** under **Worker URL**, or configure a custom domain for previews. The `preview_urls` and custom-domain settings in `wrangler.jsonc` take effect only when applied to the Worker by a production deployment; `wrangler preview` does not apply them. If a preview is deployed but both URL lists are empty, configure a host and rerun the preview workflow. See [Cloudflare's preview URL configuration](https://developers.cloudflare.com/workers/previews/custom-domains/).
 
 New previews are created with `--ignore-base-config` and do not bind the production D1 database. Existing preview secrets can persist across updates. Result and microphone debug logging and the admin dashboard API are therefore unavailable in previews. Workers AI remains enabled for server-side transcription and may incur usage charges. Preview resources are not automatically deleted when a PR closes.
 

@@ -50,7 +50,12 @@ jobs:
         preview_url="$(jq -ser '
           map(select(.type == "preview" and .version == 1)) |
           if length == 1 then
-            .[0].preview_urls[0] | select(type == "string" and length > 0)
+            .[0].preview_urls[0] as $url |
+            if ($url | type) == "string" and ($url | length) > 0 then
+              $url
+            else
+              error("Preview deployed, but Cloudflare returned no preview URL. Enable a preview host for the Worker; see README.")
+            end
           else
             error("Expected one Wrangler preview result")
           end
