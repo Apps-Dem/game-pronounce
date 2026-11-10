@@ -9,13 +9,14 @@ const fx = createScene($("scene"));
 // Overlay for browsers without speech input support
 const unsupportedOverlay = document.createElement("div");
 unsupportedOverlay.className = "unsupported-stt";
+unsupportedOverlay.hidden = true;
 unsupportedOverlay.innerHTML = `
   <span>⚠️ Speech input not supported</span>
-  <p class="hint">This browser doesn't support the Web Speech API. Use Chrome, Edge, or Safari for best results.</p>
+  <p class="hint">Speech input is unavailable in this browser or connection. Try a supported browser using HTTPS.</p>
   <button class="btn small" id="unsupportedClose">Close</button>
 `;
 document.body.appendChild(unsupportedOverlay);
-unsupportedOverlay.hidden = !speechSupported.stt;
+if (!speechSupported.stt) unsupportedOverlay.hidden = false;
 
 // Overlay for browsers without text-to-speech support
 const unsupportedTtsOverlay = document.createElement("div");
