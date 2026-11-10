@@ -104,6 +104,8 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: #fff; font-f
 }
 .unsupported-tts .hint { color: #cbd5e1; font-size: 1rem; margin-top: 12px; }
 .unsupported-tts .btn { margin-top: 20px; }
+.unsupported-stt[hidden],
+.unsupported-tts[hidden] { display: none; }
 
 /* Menu labels styling */
 .menu-labels {
