@@ -16,6 +16,15 @@
       "migrations_dir": "migrations"
     }
   ],
+  "previews": {
+    "d1_databases": [
+      {
+        "binding": "DB",
+        "database_name": "pronounce-preview",
+        "database_id": "382ff65d-f17f-48ce-96a2-d11aa615a064"
+      }
+    ]
+  },
   "routes": [
     {
       "pattern": "pronounce.alldem.app",

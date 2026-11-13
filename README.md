@@ -35,7 +35,15 @@ Before enabling PR previews:
 2. Set the GitHub Actions repository variable `CLOUDFLARE_PREVIEW_ACCESS_READY` to `true`. This is an administrative confirmation, not an automatic check of the Access policy; remove or change it if protection is removed.
 3. Ensure at least one Preview host is enabled on the existing Worker. In the Cloudflare dashboard, open the Worker's **Domains** tab and enable **Preview** under **Worker URL**, or configure a custom domain for previews. The `preview_urls` and custom-domain settings in `wrangler.jsonc` take effect only when applied to the Worker by a production deployment; `wrangler preview` does not apply them. If a preview is deployed but both URL lists are empty, configure a host and rerun the preview workflow. See [Cloudflare's preview URL configuration](https://developers.cloudflare.com/workers/previews/custom-domains/).
 
-New previews are created with `--ignore-base-config` and do not bind the production D1 database. Existing preview secrets can persist across updates. Result and microphone debug logging and the admin dashboard API are therefore unavailable in previews. Preview resources are not automatically deleted when a PR closes.
+New previews are created with `--ignore-base-config` and bind `DB` to the separate `pronounce-preview` D1 database. All PR previews share its results, diagnostic events, and schema; migrations from one PR affect every preview. The workflow validates the preview migration target and applies pending migrations before deploying. It requires the GitHub Actions Cloudflare token to have D1 write access as well as Worker deployment access. Preview database contents persist after a PR closes.
+
+Preview URLs are public unless protected by Cloudflare Access. Result and diagnostic records can include transcripts and device information, so protect preview access and use test data. Existing preview secrets can persist across updates; the admin dashboard API requires a separately configured preview `ADMIN_TOKEN`. Preview resources are not automatically deleted when a PR closes.
+
+To apply migrations manually, first ensure the database ID in `wrangler.preview-migrations.jsonc` matches `previews.d1_databases` in `wrangler.jsonc`, then run:
+```bash
+node --test test/preview-config.test.js
+npx wrangler d1 migrations apply PREVIEW_DB --remote --config wrangler.preview-migrations.jsonc
+```
 
 ### Deployment validation
 
