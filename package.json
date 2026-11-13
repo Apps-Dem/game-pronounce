@@ -10,6 +10,7 @@
     "deploy": "vite build && wrangler d1 migrations apply pronounce-results --remote && wrangler deploy"
   },
   "dependencies": {
+    "@molecule/app-ai-voice-whistle": "^1.1.5",
     "three": "^0.170.0"
   },
   "devDependencies": {

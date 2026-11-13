@@ -1,7 +1,7 @@
 import { createScene } from "./scene.js";
 import packageInfo from "../package.json";
 import { parseWordList, scanWords, lookup } from "./lexicon.js";
-import { sayWord, cancelSpeech, listen, stopListening, prepareMic, releaseMic, score as scoreSpeech, speechSupported, useRecorder, getMicDeviceInfo, micDebug } from "./speech.js";
+import { sayWord, cancelSpeech, startListeningWhistle, stopListeningWhistle, getMicDeviceInfo, micDebug, score as computeScore, speechSupported } from "./speech.js";
 
 const $ = (id) => document.getElementById(id);
 const fx = createScene($("scene"));
@@ -132,7 +132,7 @@ function startTimer() {
 
 function timeUp() {
   stopTimer();
-  stopListening();
+  stopListeningWhistle();
   listening = false;
   cancelSpeech();
   finishWord(false);
@@ -142,7 +142,7 @@ function timeUp() {
 function finishWord(success) {
   solved = true;
   stopTimer();
-  releaseMic();
+  stopListeningWhistle();
   highlight(-1);
   renderWord(entries[idx], true);
   setMic("off", "Done");
@@ -171,7 +171,6 @@ async function say() {
 function enableMic() {
   canListen = true;
   setMic("ready", "Tap to speak");
-  prepareMic();
 }
 
 async function loadWord() {
@@ -200,34 +199,49 @@ async function loadWord() {
   }
 }
 
-async function toggleMic() {
-  if (!canListen || busy || solved) return;
-  if (listening && useRecorder) { stopListening(); setMic("live", "Processing…"); return; }
-  if (listening) { stopListening(); listening = false; enableMic(); setFeedback("Listening stopped."); return; }
-  listening = true;
-  setMic("live", "Tap to stop");
-  setFeedback("");
-  try {
-    const alts = await listen();
-    listening = false;
-    if (solved) return;
-    if (!alts.length) {
-      logSpeechResult(entries[idx], [], 0, false);
-      enableMic();
-      setFeedback("I didn't catch that. Try again!", "bad");
-      return;
-    }
-    const s = scoreSpeech(entries[idx], alts);
-    const pct = Math.round(s * 100);
-    const passed = s >= PASS;
-    logSpeechResult(entries[idx], alts, s, passed);
-    if (passed) { finishWord(true); setFeedback(`Great! ${pct}% confidence ✔ (heard "${alts[0].transcript}")`, "ok"); }
-    else { enableMic(); setFeedback(`${pct}% – need ${PASS * 100}%. I heard "${alts[0].transcript}". Try again!`, "bad"); }
-  } catch (e) {
-    listening = false;
-    if (!solved) enableMic();
-    setFeedback(e.message, "bad");
+function handleTranscript(transcript, confidence) {
+  if (solved || idx < 0) return;
+  listening = false;
+  stopListeningWhistle();
+  const alts = [{ transcript, confidence: Number.isFinite(confidence) ? confidence : 0 }];
+  const s = computeScore(entries[idx], alts);
+  const pct = Math.round(s * 100);
+  const passed = s >= PASS;
+  logSpeechResult(entries[idx], alts, s, passed);
+  if (passed) {
+    finishWord(true);
+    setFeedback(`Great! ${pct}% confidence ✔ (heard "${transcript}")`, "ok");
+  } else {
+    enableMic();
+    setFeedback(`${pct}% – need ${PASS * 100}%. I heard "${transcript}". Try again!`, "bad");
   }
+}
+
+function toggleMic() {
+  if (!canListen || busy || solved) return;
+  if (listening) {
+    stopListeningWhistle();
+    listening = false;
+    enableMic();
+    setFeedback("Listening stopped.");
+    return;
+  }
+  listening = true;
+  setMic("live", "Listening…");
+  setFeedback("");
+  startListeningWhistle({
+    onTranscript: handleTranscript,
+    onError: (error) => {
+      listening = false;
+      if (!solved) enableMic();
+      setFeedback(error?.message || "Speech recognition failed. Try again.", "bad");
+    },
+    onStateChange: (state) => {
+      if (solved) return;
+      if (state === "listening") setMic("live", "Tap to stop");
+      else if (state === "error") { listening = false; enableMic(); }
+    },
+  });
 }
 
 function logSpeechResult(entry, alternatives, resultScore, passed) {
@@ -311,7 +325,7 @@ async function startList(name) {
   stopAutoStart();
   firstPending = false;
   currentList = name;
-  cancelSpeech(); stopListening(); releaseMic(); stopTimer();
+  cancelSpeech(); stopListeningWhistle(); stopTimer();
   started = false;
   setMic("off", "Wait…");
   entries = [];
@@ -388,7 +402,7 @@ $("fileInput").onchange = async (e) => {
   fillListSelect();
   startList(name);
 };
-$("sayBtn").onclick = () => { if (!busy && !listening && idx >= 0) { stopListening(); say(); } };
+$("sayBtn").onclick = () => { if (!busy && !listening && idx >= 0) { stopListeningWhistle(); say(); } };
 $("micBtn").onclick = toggleMic;
 $("nextBtn").onclick = () => {
   stopAutoStart();

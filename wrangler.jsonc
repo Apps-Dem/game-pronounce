@@ -7,11 +7,7 @@
     "directory": "./dist",
     "binding": "ASSETS"
   },
-  "ai": { "binding": "AI" },
   "preview_urls": true,
-  "previews": {
-    "ai": { "binding": "AI" }
-  },
   "d1_databases": [
     {
       "binding": "DB",
@@ -20,7 +16,21 @@
       "migrations_dir": "migrations"
     }
   ],
+  "previews": {
+    "d1_databases": [
+      {
+        "binding": "DB",
+        "database_name": "pronounce-preview",
+        "database_id": "382ff65d-f17f-48ce-96a2-d11aa615a064"
+      }
+    ]
+  },
   "routes": [
-    { "pattern": "pronounce.alldem.app", "custom_domain": true, "previews_enabled": true, "enabled": true }
+    {
+      "pattern": "pronounce.alldem.app",
+      "custom_domain": true,
+      "previews_enabled": true,
+      "enabled": true
+    }
   ]
 }

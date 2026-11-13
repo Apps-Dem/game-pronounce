@@ -230,27 +230,6 @@ async function handleAdminSummary(request, env) {
   }
 }
 
-const MAX_AUDIO_BYTES = 2_000_000;
-
-async function handleTranscribe(request, env) {
-  if (!env.AI) return apiJson(request, { error: "Transcription is not configured." }, 501);
-  const type = request.headers.get("content-type") || "";
-  if (!type.startsWith("audio/") && !type.startsWith("video/webm")) return apiJson(request, { error: "Unsupported audio type." }, 415);
-  const declared = Number(request.headers.get("content-length"));
-  if (declared > MAX_AUDIO_BYTES) return apiJson(request, { error: "Audio too large." }, 413);
-  const audio = await request.arrayBuffer();
-  if (!audio.byteLength || audio.byteLength > MAX_AUDIO_BYTES) return apiJson(request, { error: "Invalid audio size." }, 413);
-  try {
-    let binary = "";
-    const bytes = new Uint8Array(audio);
-    for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-    const out = await env.AI.run("@cf/openai/whisper-large-v3-turbo", { audio: btoa(binary), language: "en" });
-    return apiJson(request, { transcript: cleanString(out?.text, 200) });
-  } catch {
-    return apiJson(request, { error: "Transcription failed." }, 502);
-  }
-}
-
 async function handleApi(request, env, url) {
   if (request.method === "OPTIONS") {
     return new Response(null, {
@@ -264,7 +243,6 @@ async function handleApi(request, env, url) {
   }
   if (url.pathname === "/api/results" && request.method === "POST") return handleResult(request, env);
   if (url.pathname === "/api/debug" && request.method === "POST") return handleDebugEvent(request, env);
-  if (url.pathname === "/api/transcribe" && request.method === "POST") return handleTranscribe(request, env);
   if (url.pathname === "/api/admin/summary" && request.method === "GET") return handleAdminSummary(request, env);
   return apiJson(request, { error: "Not found." }, 404);
 }
