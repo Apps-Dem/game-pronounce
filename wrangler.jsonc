@@ -7,11 +7,7 @@
     "directory": "./dist",
     "binding": "ASSETS"
   },
-  "ai": { "binding": "AI" },
   "preview_urls": true,
-  "previews": {
-    "ai": { "binding": "AI" }
-  },
   "d1_databases": [
     {
       "binding": "DB",
@@ -21,6 +17,11 @@
     }
   ],
   "routes": [
-    { "pattern": "pronounce.alldem.app", "custom_domain": true, "previews_enabled": true, "enabled": true }
+    {
+      "pattern": "pronounce.alldem.app",
+      "custom_domain": true,
+      "previews_enabled": true,
+      "enabled": true
+    }
   ]
 }

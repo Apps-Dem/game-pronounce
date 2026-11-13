@@ -1,15 +1,14 @@
+import { WhistleVoiceProvider } from "@molecule/app-ai-voice-whistle";
+
 const synth = window.speechSynthesis;
-const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const wasmSupported = typeof WebAssembly === "object" && typeof WebAssembly.instantiate === "function";
+const micSupported = !!navigator.mediaDevices?.getUserMedia;
+export const speechSupported = { tts: !!synth, stt: micSupported && wasmSupported };
 const debugRequested = new URLSearchParams(location.search).has("debugMic") || localStorage.getItem("pronounce.debugMic") === "1";
 const debugSessionId = debugRequested
   ? globalThis.crypto?.randomUUID?.() || `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
   : null;
 
-const recorderSupported = !!(navigator.mediaDevices?.getUserMedia && window.MediaRecorder);
-const forceRecorder = new URLSearchParams(location.search).has("recorder");
-// Browsers without Web Speech recognition (e.g. Firefox, Samsung Internet on Android tablets) fall back to recording audio for server transcription.
-export const useRecorder = recorderSupported && (!SR || forceRecorder);
-export const speechSupported = { tts: !!synth, stt: !!SR || recorderSupported };
 export const micDebugEnabled = debugRequested;
 export function micDebug(label, details = {}) {
   if (!micDebugEnabled) return;
@@ -96,141 +95,58 @@ export function score(entry, alternatives) {
   return best;
 }
 
-let rec = null;
-let recorder = null;
-let micStream = null;
-let micWarm = null;
-let stopRequested = false;
-const MAX_RECORD_MS = 10000;
-const RECORDER_TIMESLICE_MS = 250;
+const engineUrl = "https://huggingface.co/Cactus-Compute/needle3/resolve/2ae11323dc000f5e70c49f7403efa6af12ba9e67/wasm/needle.js";
+const weightsUrl = "https://huggingface.co/Cactus-Compute/whistle/resolve/b358ddadd89b7a713b5aa131f23032d3cca1b251/whistle.cact";
+let session = null;
 
-function requestMic() {
-  if (!micWarm) {
-    micWarm = navigator.mediaDevices.getUserMedia({ audio: true })
-      .then((s) => { micStream = s; micDebug("mic-ready", { tracks: s.getTracks().length }); })
-      .catch((e) => { micDebug("mic-error", { name: e.name, message: e.message || "" }); throw e; })
-      .finally(() => { micWarm = null; });
-  }
-  return micWarm;
-}
-
-// Acquire the microphone as soon as the mic is enabled, so recording can start
-// immediately on tap instead of losing the start of the word to setup latency.
-export function prepareMic() {
-  if (!useRecorder || micStream || micWarm) return;
-  requestMic().catch(() => { /* surfaced again by listen() if still denied */ });
-}
-
-export function releaseMic() {
-  micStream?.getTracks().forEach((t) => t.stop());
-  micStream = null;
-}
-
-async function listenRecorded() {
-  stopRequested = false;
-  let stream = micStream;
-  if (!stream) {
-    try {
-      await requestMic();
-      stream = micStream;
-    } catch (e) {
-      throw new Error(e.name === "NotAllowedError" ? "Microphone permission was denied." : "Could not access the microphone.");
-    }
-  }
-  micStream = null;
-  if (stopRequested) {
-    stream.getTracks().forEach((t) => t.stop());
-    return [];
-  }
-  const mr = new MediaRecorder(stream);
-  recorder = mr;
-  const chunks = [];
-  mr.ondataavailable = (e) => { if (e.data?.size) chunks.push(e.data); };
-  const stopped = new Promise((resolve) => { mr.onstop = resolve; });
-  // Timeslice so audio is consumed continuously and a quick tap-to-stop still yields data.
-  mr.start(RECORDER_TIMESLICE_MS);
-  micDebug("recorder-start", { mimeType: mr.mimeType });
-  const timer = setTimeout(() => { if (mr.state !== "inactive") mr.stop(); }, MAX_RECORD_MS);
-  await stopped;
-  clearTimeout(timer);
-  stream.getTracks().forEach((t) => t.stop());
-  recorder = null;
-  stopRequested = false;
-  const blob = new Blob(chunks, { type: mr.mimeType || "audio/webm" });
-  if (!blob.size) return [];
-  const res = await fetch("/api/transcribe", { method: "POST", headers: { "content-type": blob.type }, body: blob });
-  if (!res.ok) throw new Error("Could not transcribe the recording.");
-  const { transcript } = await res.json();
-  return transcript ? [{ transcript, confidence: 0 }] : [];
-}
-
-export function listen() {
-  if (useRecorder) return listenRecorded();
-  return new Promise((resolve, reject) => {
-    if (!SR) return reject(new Error("Speech recognition is not supported in this browser. Try Chrome, Edge or Safari."));
-    rec = new SR();
-    rec.lang = "en-US";
-    rec.maxAlternatives = 5;
-    rec.interimResults = true;
-    const startedAt = performance.now();
-    let finalTranscript = "";
-    let finalConfidence = 0;
-    let resultEvents = 0;
-    micDebug("start", { language: rec.lang, maxAlternatives: rec.maxAlternatives, device: getMicDeviceInfo() });
-    rec.onstart = () => micDebug("onstart");
-    rec.onaudiostart = () => micDebug("onaudiostart");
-    rec.onsoundstart = () => micDebug("onsoundstart");
-    rec.onspeechstart = () => micDebug("onspeechstart");
-    rec.onspeechend = () => micDebug("onspeechend");
-    rec.onresult = (e) => {
-      resultEvents++;
-      const r = e.results[e.resultIndex] || e.results[e.results.length - 1];
-      const alternatives = Array.from(r, (a) => ({ transcript: a.transcript, confidence: a.confidence }));
-      const transcript = alternatives.map((a) => a.transcript).join("");
-      const confidence = alternatives[alternatives.length - 1]?.confidence || 0;
-      micDebug("result", {
-        resultIndex: e.resultIndex,
-        isFinal: Boolean(r?.isFinal),
-        alternatives,
-        elapsedMs: Math.round(performance.now() - startedAt),
-      });
-      if (r?.isFinal) {
-        finalTranscript = transcript;
-        finalConfidence = confidence;
+export function startListeningWhistle(handlers) {
+  stopListeningWhistle();
+  const current = { handlers, finishing: false, provider: null };
+  const provider = new WhistleVoiceProvider({
+    language: "en",
+    engineUrl,
+    weightsUrl,
+    wordTimestamps: true,
+    onModelProgress: (progress) => session?.handlers.onModelProgress?.(progress),
+  });
+  current.provider = provider;
+  session = current;
+  provider.startListening({}, {
+    onTranscript: ({ transcript, isFinal, confidence }) => {
+      if (session !== current || !isFinal) return;
+      micDebug("whistle-transcript", { transcript, confidence });
+      stopListeningWhistle();
+      handlers.onTranscript?.(transcript, confidence);
+    },
+    onError: (error) => {
+      if (session !== current) return;
+      micDebug("whistle-error", error);
+      stopListeningWhistle();
+      handlers.onError?.(error);
+    },
+    onStateChange: (state) => {
+      if (session !== current) return;
+      micDebug("whistle-state", { state });
+      if (state === "idle" && current.finishing) {
+        stopListeningWhistle();
+        handlers.onEnd?.();
+      } else {
+        handlers.onStateChange?.(state);
       }
-      // Resolve early so the game remains responsive; onend records the final lifecycle metrics.
-      resolve(alternatives);
-    };
-    rec.onerror = (e) => {
-      micDebug("error", { error: e.error, message: e.message || "", elapsedMs: Math.round(performance.now() - startedAt) });
-      reject(new Error(e.error === "no-speech" ? "I didn't hear anything." : `Microphone error: ${e.error}`));
-    };
-    rec.onend = () => {
-      micDebug("end", {
-        elapsedMs: Math.round(performance.now() - startedAt),
-        resultEvents,
-        finalTranscript,
-        finalConfidence,
-      });
-      // Resolve with whatever final result we captured if no result event resolved first.
-      if (finalTranscript) resolve([{ transcript: finalTranscript, confidence: finalConfidence }]);
-      else if (!resultEvents) resolve([]);
-    };
-    try {
-      rec.start();
-    } catch (error) {
-      micDebug("start-error", { message: error.message });
-      reject(error);
-    }
+    },
   });
 }
-export function stopListening() {
-  micDebug("stop", { active: Boolean(rec || recorder) });
-  if (recorder) {
-    try { if (recorder.state !== "inactive") recorder.stop(); } catch { /* not running */ }
-    return;
-  }
-  // Recorder fallback: getUserMedia may still be pending, so flag the stop for listenRecorded().
-  if (useRecorder) stopRequested = true;
-  try { rec?.abort(); } catch { /* not running */ }
+
+// Finish a spoken attempt, allowing the provider to transcribe its final audio.
+export function finishListeningWhistle() {
+  if (!session) return;
+  session.finishing = true;
+  session.provider.stopListening();
+}
+
+// Cancel a session when changing words, timing out, or handling its result.
+export function stopListeningWhistle() {
+  const current = session;
+  session = null;
+  current?.provider.dispose();
 }

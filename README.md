@@ -9,6 +9,13 @@ A game for practicing word pronunciation with speech recognition.
 - Custom word lists
 - Visual syllable highlighting
 
+Speech recognition uses Cactus Whistle locally in the browser. The first use
+downloads approximately 18 MB of model and engine files from Hugging Face and
+requires microphone access and WebAssembly on HTTPS or localhost. Later uses
+may reuse the browser's cache. Audio is not sent to the server for transcription;
+recognized transcripts and scores are still submitted to the results API, and
+optional microphone diagnostics can include transcripts.
+
 ## Files
 - `index.html` - Main entry point
 - `src/` - Source JavaScript and CSS files
@@ -28,7 +35,7 @@ Before enabling PR previews:
 2. Set the GitHub Actions repository variable `CLOUDFLARE_PREVIEW_ACCESS_READY` to `true`. This is an administrative confirmation, not an automatic check of the Access policy; remove or change it if protection is removed.
 3. Ensure at least one Preview host is enabled on the existing Worker. In the Cloudflare dashboard, open the Worker's **Domains** tab and enable **Preview** under **Worker URL**, or configure a custom domain for previews. The `preview_urls` and custom-domain settings in `wrangler.jsonc` take effect only when applied to the Worker by a production deployment; `wrangler preview` does not apply them. If a preview is deployed but both URL lists are empty, configure a host and rerun the preview workflow. See [Cloudflare's preview URL configuration](https://developers.cloudflare.com/workers/previews/custom-domains/).
 
-New previews are created with `--ignore-base-config` and do not bind the production D1 database. Existing preview secrets can persist across updates. Result and microphone debug logging and the admin dashboard API are therefore unavailable in previews. Workers AI remains enabled for server-side transcription and may incur usage charges. Preview resources are not automatically deleted when a PR closes.
+New previews are created with `--ignore-base-config` and do not bind the production D1 database. Existing preview secrets can persist across updates. Result and microphone debug logging and the admin dashboard API are therefore unavailable in previews. Preview resources are not automatically deleted when a PR closes.
 
 ### Deployment validation
 
